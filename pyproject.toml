@@ -1,0 +1,22 @@
+[project]
+name = "gubchat"
+description = "Gubchat is a chat client for twitch"
+version = "0.1.0"
+authors = [
+    { name = "Douglas", email = "hashy.software@gmail.com" }
+]
+dependencies = [
+    "aiohttp >= 3.8.5",
+    "websockets >= 11.0.3"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+gubchat = "gubchat.main:main"
+
+[project.optional-dependencies]
+dev = []
+
