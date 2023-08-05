@@ -1,7 +1,7 @@
 [project]
 name = "gubchat"
 description = "Gubchat is a chat client for twitch"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
     { name = "Douglas", email = "hashy.software@gmail.com" }
 ]
