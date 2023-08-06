@@ -1,11 +1,9 @@
 [project]
 name = "gubchat"
-description = "Gubchat is a chat client for twitch"
-version = "0.1.2"
+description = "Gubchat is a twitch chat client built using Kivy"
 authors = [
     { name = "Douglas", email = "hashy.software@gmail.com" }
 ]
-description = "Twitch chat client built using Kivy"
 requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
