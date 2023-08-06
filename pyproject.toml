@@ -1,10 +1,20 @@
 [project]
 name = "gubchat"
 description = "Gubchat is a chat client for twitch"
-version = "0.1.1"
+version = "0.1.2"
 authors = [
     { name = "Douglas", email = "hashy.software@gmail.com" }
 ]
+description = "Twitch chat client built using Kivy"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Development Status :: 2 - Pre-Alpha",
+
+]
+readme = "README.md"
 dependencies = [
     "aiohttp >= 3.8.5",
     "websockets >= 11.0.3",
@@ -18,6 +28,9 @@ profile = "black"
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[project.urls]
+"Homepage" = "https://github.com/Hashy-Software/gubchat"
 
 [project.scripts]
 gubchat = "gubchat.main:main"
