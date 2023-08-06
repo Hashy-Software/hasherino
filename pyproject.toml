@@ -1,6 +1,7 @@
 [project]
 name = "gubchat"
 description = "Gubchat is a twitch chat client built using Kivy"
+version = "0.1.2"
 authors = [
     { name = "Douglas", email = "hashy.software@gmail.com" }
 ]
