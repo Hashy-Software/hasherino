@@ -295,6 +295,4 @@ class TwitchWebsocket:
                     ):
                         Clock.schedule_once(lambda _, m=parsed_message: callback(m))
                 except AttributeError:
-                    logging.warn(
-                        "Message calback not called, command attribute not found"
-                    )
+                    pass
