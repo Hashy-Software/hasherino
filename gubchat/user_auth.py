@@ -91,7 +91,7 @@ async def request_oauth_token(app_id: str, existing_token: str = "") -> str:
         "client_id": app_id,
         "redirect_uri": "http://localhost:17563",
         "response_type": "token",
-        "scope": "chat:edit chat:read",
+        "scope": "chat:edit chat:read user:manage:chat_color",
         "state": _STATE,
     }
     url_formatted_headers = "&".join(
