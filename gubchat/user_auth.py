@@ -22,7 +22,8 @@ class _WebServerContextManager:
     async def __aenter__(self):
         app = web.Application()
         app.add_routes(
-            [web.get("/", _home_callback), web.get("/auth", _browser_redirect_callback)]
+            [web.get("/", _home_callback),
+             web.get("/auth", _browser_redirect_callback)]
         )
         self._runner = web.AppRunner(app)
         await self._runner.setup()
