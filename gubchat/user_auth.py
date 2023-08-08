@@ -77,9 +77,7 @@ async def _home_callback(_: web.Request) -> web.Response:
         return web.Response(text=file.read(), content_type="text/html")
 
 
-async def request_oauth_token(
-    app_id: str, token_update_callback: Callable, existing_token: str = ""
-):
+async def request_oauth_token(app_id: str, existing_token: str = "") -> str:
     """
     Validate existing token or ask user to authenticate with twitch and provide a new one.
 
@@ -114,4 +112,4 @@ async def request_oauth_token(
             raise Exception(_error)
 
         logging.info("Returning found token")
-        token_update_callback(_token)
+        return _token
