@@ -23,19 +23,62 @@ from kivymd.uix.navigationdrawer import MDNavigationDrawer, MDNavigationLayout
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.toolbar import MDTopAppBar
 
-from gubchat.twitch_websocket import TwitchWebsocket
+from gubchat.twitch_websocket import ParsedMessage, TwitchWebsocket
 from gubchat.user_auth import request_oauth_token
 
 Window.softinput_mode = "pan"
 
 
-_settings = {
+_configs = {
     "token": "",
     "user": "",
     "channel": "",
+    "color": "dd2020",
+    "user-id": "",
 }
 
+_APP_ID = "hvmj7blkwy2gw3xf820n47i85g4sub"
 _twitch_websocket = None
+
+
+async def update_configs_from_parsed_messages(messages: list[ParsedMessage]):
+    """
+    Get user-id and update user's chat color from GLOBALUSERSTATE and USERSTATE messages
+    """
+    try:
+        for message in messages:
+            if not message or not _configs["user"]:
+                continue
+
+            if not hasattr(message, "command"):
+                continue
+
+            if not hasattr(message, "tags"):
+                continue
+
+            if message.command is None or message.tags is None:
+                continue
+
+            command = message.command.get("command", "")
+            username = message.tags.get("display-name", "")
+
+            if not command or not username:
+                continue
+
+            if (
+                command in ("USERSTATE", "GLOBALUSERSTATE")
+                and username.lower() == _configs["user"].lower()
+            ):
+                logging.debug(f"Using data from userstate: {message}")
+                _configs["color"] = message.tags["color"]
+
+                if "user-id" in _configs:
+                    _configs["user-id"] = message.tags["user-id"]
+
+    except Exception as e:
+        logging.error(
+            f"Failed to get user chat color from parsed global state message: {e}"
+        )
 
 
 class ScrollableLabel(ScrollView):
@@ -120,21 +163,39 @@ class ChatPage(GridLayout):
     def send_local_message(self, _):
         msg = self.new_msg.text
         self.new_msg.text = ""
-        username = "hash_table"
-        if msg:
+
+        if not msg:
+            return
+
+        global _configs
+        Clock.schedule_once(
+            lambda _: asyncio.ensure_future(
+                _twitch_websocket.send_message(_configs["channel"], msg)
+            )
+        )
+
+        self.history.update_chat_history(
+            f"[color={_configs['color']}]{_configs['user']}: [/color] {msg}"
+        ),
+
+    def incoming_message(self, parsed_message: ParsedMessage):
+        if parsed_message.command["command"] == "PRIVMSG":
+            try:
+                user = parsed_message.tags["display-name"]
+                color = parsed_message.tags["color"]
+                message = parsed_message.parameters
+            except KeyError as e:
+                logging.error(f"Failed to get parsed message data: {e}")
+                return
+
+            self.history.update_chat_history(
+                f"[color={color}]{user} :[/color] {message}"
+            )
+        else:
             Clock.schedule_once(
                 lambda _: asyncio.ensure_future(
-                    _twitch_websocket.send_message("hash_table", msg)
+                    update_configs_from_parsed_messages([parsed_message])
                 )
-            )
-            self.history.update_chat_history(
-                f"[color=dd2020]{username}[/color] [color=20dddd]:[/color] {msg}"
-            )
-
-    def incoming_message(self, username, message):
-        if message and username:
-            self.history.update_chat_history(
-                f"[color=20dd20]{username}[/color] [color=20dddd]:[/color] {message}"
             )
 
     async def listen_for_messages(self):
@@ -189,34 +250,28 @@ class SettingsPage(GridLayout):
     def connect_button(self, _):
         logging.debug("Clicked connect button")
 
-        global _settings
+        global _configs
 
-        _settings["user"] = self.user.text
-        _settings["channel"] = self.channel.text
+        _configs["user"] = self.user.text
+        _configs["channel"] = self.channel.text
 
         Clock.schedule_once(lambda _: asyncio.ensure_future(self.twitch_connect()))
 
     async def twitch_connect(self):
         global _twitch_websocket
-        global _settings
+        global _configs
 
-        await request_oauth_token(
-            "hvmj7blkwy2gw3xf820n47i85g4sub",  # twitch app_id
-            lambda token, s=_settings: _settings.__setitem__("token", token),
-        )
+        username, channel = _configs["user"], _configs["channel"]
 
-        logging.debug("Waiting for token, channel and user")
-
-        while not all((_settings["token"], _settings["user"], _settings["channel"])):
-            await asyncio.sleep(0.2)
-
-        logging.debug("Found token, channel and user. Connecting to twitch.")
-
-        token, user, channel = (_settings[key] for key in ("token", "user", "channel"))
+        _configs["token"] = await request_oauth_token(_APP_ID)
 
         _twitch_websocket = TwitchWebsocket()
         await _twitch_websocket.connect_websocket()
-        await _twitch_websocket.authenticate(token, user)
+        parsed_responses = await _twitch_websocket.authenticate(
+            _configs["token"], username
+        )
+        await update_configs_from_parsed_messages(parsed_responses)
+
         await _twitch_websocket.join_channel(channel)
 
         Clock.schedule_once(
