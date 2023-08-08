@@ -287,9 +287,14 @@ class TwitchWebsocket:
                     f"Received websocket message: {message}. Parsed as: {parsed_message}"
                 )
 
-            if parsed_message.command.get("command", None) in (
-                "PRIVMSG",
-                "USERSTATE",  # USERSTATE messages are used to get color and user-id
-                "GLOBALUSERSTATE",
-            ):
-                Clock.schedule_once(lambda _, m=parsed_message: callback(m))
+                try:
+                    if parsed_message.command.get("command", None) in (
+                        "PRIVMSG",
+                        "USERSTATE",  # USERSTATE messages are used to get color and user-id
+                        "GLOBALUSERSTATE",
+                    ):
+                        Clock.schedule_once(lambda _, m=parsed_message: callback(m))
+                except AttributeError:
+                    logging.warn(
+                        "Message calback not called, command attribute not found"
+                    )
