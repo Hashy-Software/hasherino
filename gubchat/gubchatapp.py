@@ -227,7 +227,10 @@ class SettingsPage(GridLayout):
         )
         self.float = FloatLayout()
         self.user = MDTextField(
-            text="", multiline=False, pos_hint={"x": 0, "y": 0.2}, write_tab=False
+            text="",
+            multiline=False,
+            pos_hint={"x": 0, "y": 0.2},
+            write_tab=False,
         )
         self.float.add_widget(self.user)
         self.add_widget(self.float)
@@ -262,6 +265,12 @@ class SettingsPage(GridLayout):
         self.add_widget(MDLabel())
         self.add_widget(MDLabel())
         self.add_widget(self.float_layout)
+
+        # Uses Clock to focus so the animation doesn't look bugged
+        Clock.schedule_once(self.focus_on_user_input, 0.5)
+
+    def focus_on_user_input(self, _):
+        self.user.focus = True
 
     def connect_button(self, _):
         logging.debug("Clicked connect button")
