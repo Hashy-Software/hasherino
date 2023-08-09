@@ -121,7 +121,8 @@ class ChatPage(GridLayout):
         self.padding = 5
 
         self.add_widget(MDLabel())
-        self.history = ScrollableLabel(height=Window.size[1] * 0.788, size_hint_y=None)
+        self.history = ScrollableLabel(
+            height=Window.size[1] * 0.788, size_hint_y=None)
         self.add_widget(self.history)
 
         self.new_msg = MDTextField(
@@ -135,7 +136,8 @@ class ChatPage(GridLayout):
 
         Clock.schedule_once(self.focus_text_input, 0.4)
 
-        Clock.schedule_once(lambda _: asyncio.ensure_future(self.listen_for_messages()))
+        Clock.schedule_once(lambda _: asyncio.ensure_future(
+            self.listen_for_messages()))
 
         self.bind(size=self.adjust_fields)
 
@@ -243,6 +245,7 @@ class SettingsPage(GridLayout):
             multiline=False,
             pos_hint={"x": 0, "y": 0.2},
             write_tab=False,
+            on_text_validate=self.connect_button,
         )
         self.float.add_widget(self.channel)
         self.add_widget(self.float)
@@ -268,7 +271,8 @@ class SettingsPage(GridLayout):
         _configs["user"] = self.user.text
         _configs["channel"] = self.channel.text
 
-        Clock.schedule_once(lambda _: asyncio.ensure_future(self.twitch_connect()))
+        Clock.schedule_once(
+            lambda _: asyncio.ensure_future(self.twitch_connect()))
 
     async def twitch_connect(self):
         global _twitch_websocket
