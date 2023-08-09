@@ -156,7 +156,8 @@ class ChatPage(GridLayout):
         logging.debug(f"Chat keycode pressed: {keycode} Text: {text}")
 
         # Return and enter
-        if keycode in (40, 88):
+        if keycode in (40, 88) and self.new_msg.focus:
+            logging.debug("Sending message")
             self.send_local_message(None)
             Clock.schedule_once(self.focus_text_input, 0.1)
 
