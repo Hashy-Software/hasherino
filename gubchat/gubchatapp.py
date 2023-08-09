@@ -224,16 +224,25 @@ class SettingsPage(GridLayout):
             MDLabel(text="User: ", halign="center", theme_text_color="Primary")
         )
         self.float = FloatLayout()
-        self.user = MDTextField(text="", multiline=False, pos_hint={"x": 0, "y": 0.2})
+        self.user = MDTextField(
+            text="", multiline=False, pos_hint={"x": 0, "y": 0.2}, write_tab=False
+        )
         self.float.add_widget(self.user)
         self.add_widget(self.float)
 
         self.add_widget(
-            MDLabel(text="Channel: ", halign="center", theme_text_color="Primary")
+            MDLabel(
+                text="Channel: ",
+                halign="center",
+                theme_text_color="Primary",
+            )
         )
         self.float = FloatLayout()
         self.channel = MDTextField(
-            text="", multiline=False, pos_hint={"x": 0, "y": 0.2}
+            text="",
+            multiline=False,
+            pos_hint={"x": 0, "y": 0.2},
+            write_tab=False,
         )
         self.float.add_widget(self.channel)
         self.add_widget(self.float)
