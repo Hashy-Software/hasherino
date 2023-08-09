@@ -155,7 +155,10 @@ class ChatPage(GridLayout):
         Clock.schedule_once(self.history.update_chat_history_layout, 0.01)
 
     def on_key_down(self, instance, keyboard, keycode, text, modifiers):
-        if keycode == 40:
+        logging.debug(f"Chat keycode pressed: {keycode} Text: {text}")
+
+        # Return and enter
+        if keycode in (40, 88):
             self.send_local_message(None)
             Clock.schedule_once(self.focus_text_input, 0.1)
 
