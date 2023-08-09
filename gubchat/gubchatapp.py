@@ -121,23 +121,22 @@ class ChatPage(GridLayout):
         self.padding = 5
 
         self.add_widget(MDLabel())
-        self.history = ScrollableLabel(
-            height=Window.size[1] * 0.788, size_hint_y=None)
+        self.history = ScrollableLabel(height=Window.size[1] * 0.788, size_hint_y=None)
         self.add_widget(self.history)
 
         self.new_msg = MDTextField(
-            size_hint_x=None, multiline=False, pos_hint={"center_x": 0, "center_y": 1}
+            size_hint_x=None,
+            multiline=False,
+            pos_hint={"center_x": 0, "center_y": 1},
+            on_text_validate=self.on_new_msg_enter_pressed,
         )
         bottom_line = GridLayout(cols=1)
         bottom_line.add_widget(self.new_msg)
         self.add_widget(bottom_line)
 
-        Window.bind(on_key_down=self.on_key_down)
-
         Clock.schedule_once(self.focus_text_input, 0.4)
 
-        Clock.schedule_once(lambda _: asyncio.ensure_future(
-            self.listen_for_messages()))
+        Clock.schedule_once(lambda _: asyncio.ensure_future(self.listen_for_messages()))
 
         self.bind(size=self.adjust_fields)
 
@@ -154,14 +153,10 @@ class ChatPage(GridLayout):
         self.new_msg.width = new_width
         Clock.schedule_once(self.history.update_chat_history_layout, 0.01)
 
-    def on_key_down(self, instance, keyboard, keycode, text, modifiers):
-        logging.debug(f"Chat keycode pressed: {keycode} Text: {text}")
-
-        # Return and enter
-        if keycode in (40, 88) and self.new_msg.focus:
-            logging.debug("Sending message")
-            self.send_local_message(None)
-            Clock.schedule_once(self.focus_text_input, 0.1)
+    def on_new_msg_enter_pressed(self, _):
+        logging.debug("Sending message")
+        self.send_local_message(None)
+        Clock.schedule_once(self.focus_text_input, 0.1)
 
     def focus_text_input(self, _):
         self.new_msg.focus = True
@@ -280,8 +275,7 @@ class SettingsPage(GridLayout):
         _configs["user"] = self.user.text
         _configs["channel"] = self.channel.text
 
-        Clock.schedule_once(
-            lambda _: asyncio.ensure_future(self.twitch_connect()))
+        Clock.schedule_once(lambda _: asyncio.ensure_future(self.twitch_connect()))
 
     async def twitch_connect(self):
         global _twitch_websocket
