@@ -23,19 +23,12 @@ from kivymd.uix.navigationdrawer import MDNavigationDrawer, MDNavigationLayout
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.toolbar import MDTopAppBar
 
+from gubchat import database, helix
 from gubchat.twitch_websocket import ParsedMessage, TwitchWebsocket
 from gubchat.user_auth import request_oauth_token
 
 Window.softinput_mode = "pan"
 
-
-_configs = {
-    "token": "",
-    "user": "",
-    "channel": "",
-    "color": "dd2020",
-    "user-id": "",
-}
 
 _APP_ID = "hvmj7blkwy2gw3xf820n47i85g4sub"
 _twitch_websocket = None
@@ -43,11 +36,11 @@ _twitch_websocket = None
 
 async def update_configs_from_parsed_messages(messages: list[ParsedMessage]):
     """
-    Get user-id and update user's chat color from GLOBALUSERSTATE and USERSTATE messages
+    Get user-id and update user's chat color from USERSTATE messages
     """
     try:
         for message in messages:
-            if not message or not _configs["user"]:
+            if not message:
                 continue
 
             if not hasattr(message, "command"):
@@ -65,15 +58,21 @@ async def update_configs_from_parsed_messages(messages: list[ParsedMessage]):
             if not command or not username:
                 continue
 
-            if (
-                command in ("USERSTATE", "GLOBALUSERSTATE")
-                and username.lower() == _configs["user"].lower()
-            ):
-                logging.debug(f"Using data from userstate: {message}")
-                _configs["color"] = message.tags["color"]
+            if command not in ("USERSTATE", "GLOBALUSERSTATE", "PRIVMSG"):
+                continue
 
-                if "user-id" in _configs:
-                    _configs["user-id"] = message.tags["user-id"]
+            account = await database.get_active_twitch_account()
+            if not account:
+                continue
+
+            if command == "PRIVMSG" and account.username != username:
+                continue
+
+            logging.debug(f"Using data from userstate: {message}")
+            account.chat_color = message.tags["color"]
+            is_updated = await database.add_twitch_accounts(account)
+            if not is_updated:
+                logging.warn(f"Failed to update color for {account.username}")
 
     except Exception as e:
         logging.error(
@@ -155,28 +154,25 @@ class ChatPage(GridLayout):
 
     def on_new_msg_enter_pressed(self, _):
         logging.debug("Sending message")
-        self.send_local_message(None)
+        asyncio.ensure_future(self.send_local_message())
         Clock.schedule_once(self.focus_text_input, 0.1)
 
     def focus_text_input(self, _):
         self.new_msg.focus = True
 
-    def send_local_message(self, _):
+    async def send_local_message(self):
         msg = self.new_msg.text
         self.new_msg.text = ""
 
         if not msg:
             return
 
-        global _configs
-        Clock.schedule_once(
-            lambda _: asyncio.ensure_future(
-                _twitch_websocket.send_message(_configs["channel"], msg)
-            )
-        )
+        account: database.TwitchAccount = await database.get_active_twitch_account()
+
+        await _twitch_websocket.send_message(account.last_used_channel, msg)
 
         self.history.update_chat_history(
-            f"[color={_configs['color']}]{_configs['user']}: [/color] {msg}"
+            f"[color={account.chat_color}]{account.username}: [/color] {msg}"
         ),
 
     def incoming_message(self, parsed_message: ParsedMessage):
@@ -192,12 +188,12 @@ class ChatPage(GridLayout):
             self.history.update_chat_history(
                 f"[color={color}]{user} :[/color] {message}"
             )
-        else:
-            Clock.schedule_once(
-                lambda _: asyncio.ensure_future(
-                    update_configs_from_parsed_messages([parsed_message])
-                )
+
+        Clock.schedule_once(
+            lambda _: asyncio.ensure_future(
+                update_configs_from_parsed_messages([parsed_message])
             )
+        )
 
     async def listen_for_messages(self):
         logging.debug("Listening for messages")
@@ -261,6 +257,8 @@ class SettingsPage(GridLayout):
         self.add_widget(MDLabel())
         self.add_widget(self.float_layout)
 
+        asyncio.ensure_future(self.connect_from_saved())
+
         # Uses Clock to focus so the animation doesn't look bugged
         Clock.schedule_once(self.focus_on_user_input, 0.5)
 
@@ -270,27 +268,47 @@ class SettingsPage(GridLayout):
     def connect_button(self, _):
         logging.debug("Clicked connect button")
 
-        global _configs
+        Clock.schedule_once(
+            lambda _: asyncio.ensure_future(
+                self.twitch_connect(self.user.text.strip(), self.channel.text.strip())
+            )
+        )
 
-        _configs["user"] = self.user.text
-        _configs["channel"] = self.channel.text
+    async def connect_from_saved(self):
+        user = await database.get_active_twitch_account()
 
-        Clock.schedule_once(lambda _: asyncio.ensure_future(self.twitch_connect()))
+        if user:
+            await self.twitch_connect(user.username, user.last_used_channel)
 
-    async def twitch_connect(self):
+    async def twitch_connect(self, username: str, channel: str):
+        account = await database.get_twitch_account(username)
+
+        if account is None:
+            account = database.TwitchAccount(username=username)
+
+            user = (await helix.get_users(_APP_ID, account.oauth_token, [username]))[0]
+            color_info = (
+                await helix.get_user_chat_color(_APP_ID, account.oauth_token, [user.id])
+            )[0]
+
+            account.twitch_id = user.id
+            account.chat_color = color_info.color
+            account.is_active = True
+
+        # Update current/get a new token
+        account.oauth_token = await request_oauth_token(_APP_ID, account.oauth_token)
+        account.last_used_channel = channel
+
+        await database.add_twitch_accounts(account)
+
         global _twitch_websocket
-        global _configs
-
-        username, channel = _configs["user"], _configs["channel"]
-
-        _configs["token"] = await request_oauth_token(_APP_ID)
 
         _twitch_websocket = TwitchWebsocket()
         await _twitch_websocket.connect_websocket()
+
         parsed_responses = await _twitch_websocket.authenticate(
-            _configs["token"], username
+            account.oauth_token, username
         )
-        await update_configs_from_parsed_messages(parsed_responses)
 
         await _twitch_websocket.join_channel(channel)
 
@@ -309,6 +327,8 @@ class GubChatApp(MDApp):
         Window.borderless = False
         self.title = "GubChat"
         Config.set("kivy", "window_title", self.title)
+
+        asyncio.ensure_future(database.create_db())
 
         self.root_sm = ScreenManager()
         rscreen = Screen(name="Root")
