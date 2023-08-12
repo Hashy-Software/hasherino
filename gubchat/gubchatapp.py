@@ -197,12 +197,13 @@ class ChatPage(GridLayout):
 
     async def listen_for_messages(self):
         logging.debug("Listening for messages")
+
         while True:
             task = asyncio.create_task(
                 _twitch_websocket.listen_message(self.incoming_message)
             )
             while not task.done():
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(0.1)
 
 
 class SettingsPage(GridLayout):
