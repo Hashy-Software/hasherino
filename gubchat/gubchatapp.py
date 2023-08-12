@@ -13,6 +13,7 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.image import Image
 from kivy.uix.screenmanager import Screen, ScreenManager
 from kivy.uix.scrollview import ScrollView
+from kivy.utils import escape_markup
 from kivymd.app import MDApp
 from kivymd.font_definitions import theme_font_styles
 from kivymd.theming import ThemeManager
@@ -157,6 +158,7 @@ class ScrollableLabel(ScrollView):
         while True:
             try:
                 chat_color, username, message = message_queue.get_nowait()
+                message = escape_markup(message)
                 message = f"[color={chat_color}]{username} :[/color] {message}"
                 messages = f"{messages}\n{message}"
             except asyncio.QueueEmpty:
