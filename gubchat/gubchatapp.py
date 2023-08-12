@@ -35,6 +35,53 @@ _twitch_websocket = None
 _message_queue = asyncio.Queue()
 
 
+async def connect_from_saved():
+    try:
+        user = await database.get_active_twitch_account()
+
+        if user:
+            await twitch_connect(user.username, user.last_used_channel)
+    except Exception as e:
+        logging.error(
+            f"Exception thrown while trying to connect to twitch using database data: {e}"
+        )
+        user = None
+
+    App.get_running_app().screen_manager.current = "Chat" if user else "Settings"
+
+
+async def twitch_connect(username: str, channel: str):
+    account = await database.get_twitch_account(username)
+
+    if account is None:
+        account = database.TwitchAccount(username=username)
+
+        user = (await helix.get_users(_APP_ID, account.oauth_token, [username]))[0]
+        color_info = (
+            await helix.get_user_chat_color(_APP_ID, account.oauth_token, [user.id])
+        )[0]
+
+        account.twitch_id = user.id
+        account.chat_color = color_info.color
+        account.is_active = True
+
+    # Update current/get a new token
+    account.oauth_token = await request_oauth_token(_APP_ID, account.oauth_token)
+    account.last_used_channel = channel
+
+    await database.add_twitch_accounts(account)
+
+    global _twitch_websocket
+
+    _twitch_websocket = TwitchWebsocket()
+    await _twitch_websocket.connect_websocket()
+
+    await _twitch_websocket.authenticate(account.oauth_token, username)
+
+    await _twitch_websocket.join_channel(channel)
+    App.get_running_app().screen_manager.current = "Chat"
+
+
 async def update_configs_from_parsed_messages(messages: list[ParsedMessage]):
     """
     Get user-id and update user's chat color from USERSTATE messages
@@ -114,7 +161,7 @@ class ScrollableLabel(ScrollView):
 
         while len(self.chat_history.text) > 10_000:
             self.chat_history.text = self.chat_history.text[
-                self.chat_history.text.find("\n") + 1:
+                self.chat_history.text.find("\n") + 1 :
             ]
 
         self.chat_history.text = f"{self.chat_history.text}{messages}"
@@ -139,8 +186,7 @@ class ChatPage(GridLayout):
         self.padding = 5
 
         self.add_widget(MDLabel())
-        self.history = ScrollableLabel(
-            height=Window.size[1] * 0.788, size_hint_y=None)
+        self.history = ScrollableLabel(height=Window.size[1] * 0.788, size_hint_y=None)
         self.add_widget(self.history)
 
         self.new_msg = MDTextField(
@@ -155,8 +201,7 @@ class ChatPage(GridLayout):
 
         Clock.schedule_once(self.focus_text_input, 0.4)
 
-        Clock.schedule_once(lambda _: asyncio.ensure_future(
-            self.listen_for_messages()))
+        Clock.schedule_once(lambda _: asyncio.ensure_future(self.listen_for_messages()))
 
         Clock.schedule_interval(
             lambda _: self.history.update_chat_history(_message_queue),
@@ -220,12 +265,16 @@ class ChatPage(GridLayout):
     async def listen_for_messages(self):
         logging.debug("Listening for messages")
 
+        while not _twitch_websocket:
+            await asyncio.sleep(2)
+
         while True:
             task = asyncio.create_task(
                 _twitch_websocket.listen_message(self.incoming_message)
             )
+
             while not task.done():
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.2)
 
 
 class SettingsPage(GridLayout):
@@ -280,8 +329,6 @@ class SettingsPage(GridLayout):
         self.add_widget(MDLabel())
         self.add_widget(self.float_layout)
 
-        asyncio.ensure_future(self.connect_from_saved())
-
         # Uses Clock to focus so the animation doesn't look bugged
         Clock.schedule_once(self.focus_on_user_input, 0.5)
 
@@ -293,51 +340,8 @@ class SettingsPage(GridLayout):
 
         Clock.schedule_once(
             lambda _: asyncio.ensure_future(
-                self.twitch_connect(self.user.text.strip(),
-                                    self.channel.text.strip())
+                twitch_connect(self.user.text.strip(), self.channel.text.strip())
             )
-        )
-
-    async def connect_from_saved(self):
-        user = await database.get_active_twitch_account()
-
-        if user:
-            await self.twitch_connect(user.username, user.last_used_channel)
-
-    async def twitch_connect(self, username: str, channel: str):
-        account = await database.get_twitch_account(username)
-
-        if account is None:
-            account = database.TwitchAccount(username=username)
-
-            user = (await helix.get_users(_APP_ID, account.oauth_token, [username]))[0]
-            color_info = (
-                await helix.get_user_chat_color(_APP_ID, account.oauth_token, [user.id])
-            )[0]
-
-            account.twitch_id = user.id
-            account.chat_color = color_info.color
-            account.is_active = True
-
-        # Update current/get a new token
-        account.oauth_token = await request_oauth_token(_APP_ID, account.oauth_token)
-        account.last_used_channel = channel
-
-        await database.add_twitch_accounts(account)
-
-        global _twitch_websocket
-
-        _twitch_websocket = TwitchWebsocket()
-        await _twitch_websocket.connect_websocket()
-
-        parsed_responses = await _twitch_websocket.authenticate(
-            account.oauth_token, username
-        )
-
-        await _twitch_websocket.join_channel(channel)
-
-        Clock.schedule_once(
-            lambda _, chat_app=App.get_running_app(): chat_app.create_chat_page()
         )
 
 
@@ -372,7 +376,10 @@ class GubChatApp(MDApp):
         nl_screen.add_widget(self.toolbar)
         self.screen_manager = ScreenManager()
 
+        self.create_chat_page()
         self.create_settings_page()
+
+        asyncio.ensure_future(connect_from_saved())
 
         nl_screen.add_widget(self.screen_manager)
         self.nl_sm.add_widget(nl_screen)
@@ -399,21 +406,32 @@ class GubChatApp(MDApp):
             pos_hint={"center_x": 0.5, "center_y": 1},
             font_style="Button",
         )
-        self.iconitem = IconLeftWidget(
+        self.darkmode_icon = IconLeftWidget(
             icon="settings", pos_hint={"center_x": 1, "center_y": 0.55}
         )
-        self.sub_nav.add_widget(self.iconitem)
+        self.sub_nav.add_widget(self.darkmode_icon)
         self.fl.add_widget(self.sub_nav)
-        self.settings_btn = OneLineAvatarIconListItem(
+        self.darkmode_btn = OneLineAvatarIconListItem(
             text="Dark Mode",
             on_press=self.theme_change,
             on_release=lambda x: self.nav_drawer.set_state(new_state="toggle"),
             pos_hint={"center_x": 0.5, "center_y": 0.86},
         )
-        self.iconitem = IconLeftWidget(
+        self.darkmode_icon = IconLeftWidget(
             icon="theme-light-dark", pos_hint={"center_x": 1, "center_y": 0.55}
         )
-        self.settings_btn.add_widget(self.iconitem)
+        self.settings_icon = IconLeftWidget(
+            icon="cog-outline", pos_hint={"center_x": 1, "center_y": 0.55}
+        )
+        self.settings_btn = OneLineAvatarIconListItem(
+            text="Settings",
+            on_press=lambda _: self.show_settings_screen(),
+            on_release=lambda x: self.nav_drawer.set_state(new_state="toggle"),
+            pos_hint={"center_x": 0.5, "center_y": 0.72},
+        )
+        self.darkmode_btn.add_widget(self.darkmode_icon)
+        self.settings_btn.add_widget(self.settings_icon)
+        self.fl.add_widget(self.darkmode_btn)
         self.fl.add_widget(self.settings_btn)
         self.ndbox.add_widget(self.fl)
         self.toolbar = MDTopAppBar(
@@ -432,6 +450,9 @@ class GubChatApp(MDApp):
 
         return self.root_sm
 
+    def show_settings_screen(self):
+        self.screen_manager.current = "Settings"
+
     def on_stop(self):
         logging.info("Closing requested. Waiting for websocket to disconnect.")
         if _twitch_websocket:
@@ -448,14 +469,12 @@ class GubChatApp(MDApp):
         screen = Screen(name="Chat")
         screen.add_widget(self.chat_page)
         self.screen_manager.add_widget(screen)
-        self.screen_manager.current = "Chat"
 
     def create_settings_page(self):
         self.settings_page = SettingsPage()
         screen = Screen(name="Settings")
         screen.add_widget(self.settings_page)
         self.screen_manager.add_widget(screen)
-        self.screen_manager.current = "Settings"
 
     def on_start(self):
         from kivy.base import EventLoop

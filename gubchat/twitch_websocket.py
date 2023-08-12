@@ -233,14 +233,13 @@ class TwitchWebsocket:
             await self._websocket.send(
                 "CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags"
             )
-            await self._websocket.recv()
 
     async def disconnect_websocket(self):
         if self._websocket:
             await self._websocket.close()
             self._websocket = None
 
-    async def authenticate(self, token: str, user: str) -> list[ParsedMessage]:
+    async def authenticate(self, token: str, user: str):
         """
         Returns parsed authentication response
         """
@@ -250,12 +249,6 @@ class TwitchWebsocket:
         await self._websocket.send(f"PASS oauth:{token}")
         await self._websocket.send(f"NICK {user}")
         await self._websocket.send(f"USER {user} 8 * :{user}")
-
-        response = await self._websocket.recv()
-        logging.info(f"Authentication response: {response}")
-        parsed_messages = [ParsedMessage(message)
-                           for message in response.split("\r\n")]
-        return parsed_messages
 
     async def join_channel(self, channel: str):
         if self._websocket is None:
