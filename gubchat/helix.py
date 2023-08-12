@@ -99,7 +99,7 @@ async def get_user_chat_color(
 
     async with ClientSession() as session:
         async with session.get(
-            f"{_BASE_URL}users",
+            f"{_BASE_URL}chat/color",
             headers={
                 "Authorization": f"Bearer {oauth_token}",
                 "Client-Id": app_id,
