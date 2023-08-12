@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections import defaultdict
 from typing import Callable
@@ -251,21 +252,19 @@ class TwitchWebsocket:
 
         response = await self._websocket.recv()
         logging.info(f"Authentication response: {response}")
-        parsed_messages = [ParsedMessage(message) for message in response.split("\r\n")]
+        parsed_messages = [ParsedMessage(message)
+                           for message in response.split("\r\n")]
         return parsed_messages
 
-    async def join_channel(self, channel: str) -> str:
+    async def join_channel(self, channel: str):
         if self._websocket is None:
             raise Exception("Websocket not connected")
 
         await self._websocket.send(f"JOIN #{channel}")
 
-        response = await self._websocket.recv()
-        logging.info(f"Tried joining channel {channel}. Response: {response}")
-        return response
-
     async def send_message(self, channel: str, message: str):
-        logging.debug(f"Sending message on channel {channel} message: {message}")
+        logging.debug(
+            f"Sending message on channel {channel} message: {message}")
 
         if self._websocket is None:
             raise Exception("Websocket not connected")
@@ -293,6 +292,7 @@ class TwitchWebsocket:
                         "USERSTATE",  # USERSTATE messages are used to get color and user-id
                         "GLOBALUSERSTATE",
                     ):
-                        Clock.schedule_once(lambda _, m=parsed_message: callback(m))
+                        Clock.schedule_once(
+                            lambda _, m=parsed_message: callback(m))
                 except AttributeError:
                     pass
