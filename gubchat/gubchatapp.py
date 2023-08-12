@@ -32,6 +32,7 @@ Window.softinput_mode = "pan"
 
 _APP_ID = "hvmj7blkwy2gw3xf820n47i85g4sub"
 _twitch_websocket = None
+_message_queue = asyncio.Queue()
 
 
 async def update_configs_from_parsed_messages(messages: list[ParsedMessage]):
@@ -97,8 +98,26 @@ class ScrollableLabel(ScrollView):
         self.layout.add_widget(self.chat_history)
         self.layout.add_widget(self.scroll_to_point)
 
-    def update_chat_history(self, message):
-        self.chat_history.text += "\n" + message
+    def update_chat_history(self, message_queue: asyncio.Queue):
+        """
+        Messages are tuples of chat_color, username, message
+        """
+        messages: str = ""
+
+        while True:
+            try:
+                chat_color, username, message = message_queue.get_nowait()
+                message = f"[color={chat_color}]{username} :[/color] {message}"
+                messages = f"{messages}\n{message}"
+            except asyncio.QueueEmpty:
+                break
+
+        while len(self.chat_history.text) > 10_000:
+            self.chat_history.text = self.chat_history.text[
+                self.chat_history.text.find("\n") + 1:
+            ]
+
+        self.chat_history.text = f"{self.chat_history.text}{messages}"
 
         self.layout.height = self.chat_history.texture_size[1] + 15
         self.chat_history.height = self.chat_history.texture_size[1]
@@ -120,7 +139,8 @@ class ChatPage(GridLayout):
         self.padding = 5
 
         self.add_widget(MDLabel())
-        self.history = ScrollableLabel(height=Window.size[1] * 0.788, size_hint_y=None)
+        self.history = ScrollableLabel(
+            height=Window.size[1] * 0.788, size_hint_y=None)
         self.add_widget(self.history)
 
         self.new_msg = MDTextField(
@@ -135,7 +155,13 @@ class ChatPage(GridLayout):
 
         Clock.schedule_once(self.focus_text_input, 0.4)
 
-        Clock.schedule_once(lambda _: asyncio.ensure_future(self.listen_for_messages()))
+        Clock.schedule_once(lambda _: asyncio.ensure_future(
+            self.listen_for_messages()))
+
+        Clock.schedule_interval(
+            lambda _: self.history.update_chat_history(_message_queue),
+            0.3,
+        )
 
         self.bind(size=self.adjust_fields)
 
@@ -171,9 +197,7 @@ class ChatPage(GridLayout):
 
         await _twitch_websocket.send_message(account.last_used_channel, msg)
 
-        self.history.update_chat_history(
-            f"[color={account.chat_color}]{account.username}: [/color] {msg}"
-        ),
+        await _message_queue.put((account.chat_color, account.username, msg))
 
     def incoming_message(self, parsed_message: ParsedMessage):
         if parsed_message.command["command"] == "PRIVMSG":
@@ -185,9 +209,7 @@ class ChatPage(GridLayout):
                 logging.error(f"Failed to get parsed message data: {e}")
                 return
 
-            self.history.update_chat_history(
-                f"[color={color}]{user} :[/color] {message}"
-            )
+            asyncio.ensure_future(_message_queue.put((color, user, message)))
 
         Clock.schedule_once(
             lambda _: asyncio.ensure_future(
@@ -271,7 +293,8 @@ class SettingsPage(GridLayout):
 
         Clock.schedule_once(
             lambda _: asyncio.ensure_future(
-                self.twitch_connect(self.user.text.strip(), self.channel.text.strip())
+                self.twitch_connect(self.user.text.strip(),
+                                    self.channel.text.strip())
             )
         )
 
