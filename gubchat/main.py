@@ -1,6 +1,8 @@
 import asyncio
 import logging
 
+import uvloop
+
 from gubchat.gubchatapp import GubChatApp
 
 
@@ -15,6 +17,7 @@ def main():
     websockets_logger = logging.getLogger("websockets")
     websockets_logger.setLevel(logging.INFO)
 
+    uvloop.install()
     app = GubChatApp()
     asyncio.run(app.async_run())
 

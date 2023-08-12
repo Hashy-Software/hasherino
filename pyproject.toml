@@ -19,6 +19,7 @@ dependencies = [
     "websockets >= 11.0.3",
     "kivy >= 2.2.1",
     "kivymd >= 1.1.1",
+    "uvloop >= 0.17.0",
 ]
 
 [tool.isort]
