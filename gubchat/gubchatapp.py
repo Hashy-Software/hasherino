@@ -31,6 +31,8 @@ Window.softinput_mode = "pan"
 
 
 _APP_ID = "hvmj7blkwy2gw3xf820n47i85g4sub"
+_FONT_SIZE = "18sp"
+
 _twitch_websocket = None
 _message_queue = asyncio.Queue()
 
@@ -140,6 +142,7 @@ class ScrollableLabel(ScrollView):
             font_style=theme_font_styles[6],
             theme_text_color="Primary",
         )
+        self.chat_history.font_size = _FONT_SIZE
         self.scroll_to_point = MDLabel()
 
         self.layout.add_widget(self.chat_history)
@@ -195,6 +198,8 @@ class ChatPage(GridLayout):
             pos_hint={"center_x": 0, "center_y": 1},
             on_text_validate=self.on_new_msg_enter_pressed,
         )
+        self.new_msg.font_size = _FONT_SIZE
+
         bottom_line = GridLayout(cols=1)
         bottom_line.add_widget(self.new_msg)
         self.add_widget(bottom_line)
