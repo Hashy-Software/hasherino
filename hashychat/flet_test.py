@@ -76,7 +76,7 @@ class ChatMessage(ft.Row):
 
 async def main(page: ft.Page):
     page.horizontal_alignment = "stretch"
-    page.title = "Flet Chat"
+    page.title = "Hashy Chat"
 
     async def join_chat_click(e):
         if not join_user_name.value:

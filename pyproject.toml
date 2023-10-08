@@ -1,6 +1,6 @@
 [project]
-name = "gubchat"
-description = "Gubchat is a twitch chat client built using Kivy"
+name = "hashychat"
+description = "hashychat is a twitch chat client built using Kivy"
 version = "0.1.4"
 authors = [
     { name = "Douglas", email = "hashy.software@gmail.com" }
@@ -34,10 +34,10 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project.urls]
-"Homepage" = "https://github.com/Hashy-Software/gubchat"
+"Homepage" = "https://github.com/Hashy-Software/hashychat"
 
 [project.scripts]
-gubchat = "gubchat.main:main"
+hashychat = "hashychat.main:main"
 
 [project.optional-dependencies]
 dev = []

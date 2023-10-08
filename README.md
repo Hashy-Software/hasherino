@@ -1,2 +1,2 @@
-# gubchat
-A gub twitch chat client
+# hashychat
+A twitch chat client.
