@@ -1,6 +1,5 @@
 """
 TODO:
-- convert to async
 
 """
 from dataclasses import dataclass
@@ -72,33 +71,33 @@ class ChatMessage(ft.Row):
             self.controls.append(result)
 
 
-def main(page: ft.Page):
+async def main(page: ft.Page):
     page.horizontal_alignment = "stretch"
     page.title = "Flet Chat"
 
-    def join_chat_click(e):
+    async def join_chat_click(e):
         if not join_user_name.value:
             join_user_name.error_text = "Name cannot be blank!"
-            join_user_name.update()
+            await join_user_name.update_async()
         else:
             page.session.set("user_name", join_user_name.value)
             page.dialog.open = False
             new_message.prefix = ft.Text(f"{join_user_name.value}: ")
-            page.pubsub.send_all(
+            await page.pubsub.send_all_async(
                 Message(
                     user=User(name=join_user_name.value),
                     elements=[f"{join_user_name.value} has joined the chat."],
                     message_type="login_message",
                 )
             )
-            page.update()
+            await page.update_async()
 
-    def send_message_click(e):
+    async def send_message_click(e):
         if new_message.value != "":
             emote_map = {
                 "baseg": Emote(id="62306782b88633b42c0bdd7b", name="baseg"),
             }
-            page.pubsub.send_all(
+            await page.pubsub.send_all_async(
                 Message(
                     User(
                         name=page.session.get("user_name"),
@@ -117,10 +116,10 @@ def main(page: ft.Page):
                 )
             )
             new_message.value = ""
-            new_message.focus()
-            page.update()
+            await new_message.focus_async()
+            await page.update_async()
 
-    def on_message(message: Message):
+    async def on_message(message: Message):
         if message.message_type == "chat_message":
             m = ChatMessage(message, page.window_width)
         elif message.message_type == "login_message":
@@ -128,9 +127,9 @@ def main(page: ft.Page):
                 message.elements[0], italic=True, color=ft.colors.BLACK45, size=12
             )
         chat.controls.append(m)
-        page.update()
+        await page.update_async()
 
-    page.pubsub.subscribe(on_message)
+    await page.pubsub.subscribe_async(on_message)
 
     # A dialog asking for a user display name
     join_user_name = ft.TextField(
@@ -147,9 +146,9 @@ def main(page: ft.Page):
         actions_alignment="end",
     )
 
-    def login_click(e):
+    async def login_click(e):
         page.dialog.open = True
-        page.update()
+        await page.update_async()
 
     # Chat messages
     chat = ft.ListView(
@@ -171,7 +170,7 @@ def main(page: ft.Page):
     )
 
     # Add everything to the page
-    page.add(
+    await page.add_async(
         ft.ElevatedButton("Login", on_click=login_click),
         ft.Container(
             content=chat,
