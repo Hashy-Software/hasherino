@@ -7,6 +7,8 @@ from dataclasses import dataclass
 import flet as ft
 from sqlalchemy.sql.compiler import selectable
 
+_FONT_SIZE = 15
+
 
 @dataclass
 class Badge:
@@ -54,13 +56,14 @@ class ChatMessage(ft.Row):
         self.controls.append(
             ft.Text(
                 f"{message.user.name}: ",
+                size=_FONT_SIZE,
                 color=message.user.chat_color,
                 weight="bold",
             )
         )
         for element in message.elements:
             if type(element) == str:
-                result = ft.Text(element, selectable=True)
+                result = ft.Text(element, selectable=True, size=_FONT_SIZE)
             elif type(element) == Emote:
                 result = ft.Image(
                     src=element.get_url_1x(), height=height, fit=ft.ImageFit.CONTAIN
@@ -124,7 +127,7 @@ async def main(page: ft.Page):
             m = ChatMessage(message, page.window_width)
         elif message.message_type == "login_message":
             m = ft.Text(
-                message.elements[0], italic=True, color=ft.colors.BLACK45, size=12
+                message.elements[0], italic=True, color=ft.colors.WHITE, size=_FONT_SIZE
             )
         chat.controls.append(m)
         await page.update_async()
