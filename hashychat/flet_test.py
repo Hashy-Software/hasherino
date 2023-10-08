@@ -5,9 +5,11 @@ TODO:
 from dataclasses import dataclass
 
 import flet as ft
-from sqlalchemy.sql.compiler import selectable
 
-_FONT_SIZE = 15
+# from sqlalchemy.sql.compiler import selectable
+
+_FONT_SIZE = 50
+_EMOTE_HEIGHT = int(_FONT_SIZE * 3 / 2)
 
 
 @dataclass
@@ -15,8 +17,8 @@ class Badge:
     name: str
     id: str
 
-    def get_url_1x(self) -> str:
-        return f"https://static-cdn.jtvnw.net/badges/v1/{self.id}/1"
+    def get_url(self) -> str:
+        return f"https://static-cdn.jtvnw.net/badges/v1/{self.id}/2"
 
 
 @dataclass
@@ -31,8 +33,8 @@ class Emote:
     name: str
     id: str
 
-    def get_url_1x(self) -> str:
-        return f"https://cdn.7tv.app/emote/{self.id}/1x.webp"
+    def get_url(self) -> str:
+        return f"https://cdn.7tv.app/emote/{self.id}/4x.webp"
 
 
 @dataclass
@@ -49,24 +51,24 @@ class ChatMessage(ft.Row):
         self.wrap = True
         self.width = width
         self.spacing = 5
-        height = 20
-        self.controls = [
-            ft.Image(src=badge.get_url_1x()) for badge in message.user.badges
-        ]
-        self.controls.append(
-            ft.Text(
-                f"{message.user.name}: ",
-                size=_FONT_SIZE,
-                color=message.user.chat_color,
-                weight="bold",
-            )
+        username = ft.Text(
+            f"{message.user.name}: ",
+            size=_FONT_SIZE,
+            color=message.user.chat_color,
+            weight="bold",
         )
+        self.controls = [
+            ft.Image(src=badge.get_url(), height=_FONT_SIZE)
+            for badge in message.user.badges
+        ]
+        self.controls.append(username)
         for element in message.elements:
             if type(element) == str:
                 result = ft.Text(element, selectable=True, size=_FONT_SIZE)
             elif type(element) == Emote:
                 result = ft.Image(
-                    src=element.get_url_1x(), height=height, fit=ft.ImageFit.CONTAIN
+                    src=element.get_url(),
+                    height=_EMOTE_HEIGHT,
                 )
             else:
                 raise TypeError
@@ -98,7 +100,8 @@ async def main(page: ft.Page):
     async def send_message_click(e):
         if new_message.value != "":
             emote_map = {
-                "baseg": Emote(id="62306782b88633b42c0bdd7b", name="baseg"),
+                "catFight": Emote(id="62306782b88633b42c0bdd7b", name="catFight"),
+                "Slapahomie": Emote(id="60f22ed831ba6ae62262f234", name="Slapahomie"),
             }
             await page.pubsub.send_all_async(
                 Message(
