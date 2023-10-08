@@ -8,8 +8,8 @@ import flet as ft
 
 # from sqlalchemy.sql.compiler import selectable
 
-_FONT_SIZE = 50
-_EMOTE_HEIGHT = int(_FONT_SIZE * 3 / 2)
+_FONT_SIZE = 18
+_EMOTE_HEIGHT = _FONT_SIZE * 2
 
 
 @dataclass
@@ -51,6 +51,7 @@ class ChatMessage(ft.Row):
         self.wrap = True
         self.width = width
         self.spacing = 5
+        self.vertical_alignment = ft.CrossAxisAlignment.CENTER
         username = ft.Text(
             f"{message.user.name}: ",
             size=_FONT_SIZE,
@@ -100,7 +101,7 @@ async def main(page: ft.Page):
     async def send_message_click(e):
         if new_message.value != "":
             emote_map = {
-                "catFight": Emote(id="62306782b88633b42c0bdd7b", name="catFight"),
+                "catFight": Emote(id="643d8003f6c0390df3367b04", name="catFight"),
                 "Slapahomie": Emote(id="60f22ed831ba6ae62262f234", name="Slapahomie"),
             }
             await page.pubsub.send_all_async(
