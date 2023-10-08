@@ -1,17 +1,44 @@
 """
 TODO:
-- make emote align
 - convert to async
 
 """
+from dataclasses import dataclass
+
 import flet as ft
+from sqlalchemy.sql.compiler import selectable
 
 
+@dataclass
+class Badge:
+    name: str
+    id: str
+
+    def get_url_1x(self) -> str:
+        return f"https://static-cdn.jtvnw.net/badges/v1/{self.id}/1"
+
+
+@dataclass
+class User:
+    name: str
+    badges: list[Badge] | None = None
+    chat_color: str | None = None
+
+
+@dataclass
+class Emote:
+    name: str
+    id: str
+
+    def get_url_1x(self) -> str:
+        return f"https://cdn.7tv.app/emote/{self.id}/1x.webp"
+
+
+@dataclass
 class Message:
-    def __init__(self, user_name: str, text: str, message_type: str):
-        self.user_name = user_name
-        self.text = text
-        self.message_type = message_type
+    user: User
+    elements: list[str | Emote]
+    message_type: str
 
 
 class ChatMessage(ft.Row):
@@ -20,47 +47,29 @@ class ChatMessage(ft.Row):
         self.vertical_alignment = "start"
         self.wrap = True
         self.width = width
+        self.spacing = 5
+        height = 20
         self.controls = [
-            ft.CircleAvatar(
-                content=ft.Text(self.get_initials(message.user_name)),
-                color=ft.colors.WHITE,
-                bgcolor=self.get_avatar_color(message.user_name),
-            ),
-            ft.Column(
-                [
-                    ft.Text(message.user_name, weight="bold"),
-                    ft.Text(message.text, selectable=True),
-                ],
-                tight=True,
-                spacing=5,
-            ),
-            ft.Image(
-                src="https://cdn.7tv.app/emote/62092a7c1c8d14fe9d45dea1/4x.webp",
-                width=20,
-                height=20,
-            ),
+            ft.Image(src=badge.get_url_1x()) for badge in message.user.badges
         ]
+        self.controls.append(
+            ft.Text(
+                f"{message.user.name}: ",
+                color=message.user.chat_color,
+                weight="bold",
+            )
+        )
+        for element in message.elements:
+            if type(element) == str:
+                result = ft.Text(element, selectable=True)
+            elif type(element) == Emote:
+                result = ft.Image(
+                    src=element.get_url_1x(), height=height, fit=ft.ImageFit.CONTAIN
+                )
+            else:
+                raise TypeError
 
-    def get_initials(self, user_name: str):
-        return user_name[:1].capitalize()
-
-    def get_avatar_color(self, user_name: str):
-        colors_lookup = [
-            ft.colors.AMBER,
-            ft.colors.BLUE,
-            ft.colors.BROWN,
-            ft.colors.CYAN,
-            ft.colors.GREEN,
-            ft.colors.INDIGO,
-            ft.colors.LIME,
-            ft.colors.ORANGE,
-            ft.colors.PINK,
-            ft.colors.PURPLE,
-            ft.colors.RED,
-            ft.colors.TEAL,
-            ft.colors.YELLOW,
-        ]
-        return colors_lookup[hash(user_name) % len(colors_lookup)]
+            self.controls.append(result)
 
 
 def main(page: ft.Page):
@@ -77,8 +86,8 @@ def main(page: ft.Page):
             new_message.prefix = ft.Text(f"{join_user_name.value}: ")
             page.pubsub.send_all(
                 Message(
-                    user_name=join_user_name.value,
-                    text=f"{join_user_name.value} has joined the chat.",
+                    user=User(name=join_user_name.value),
+                    elements=[f"{join_user_name.value} has joined the chat."],
                     message_type="login_message",
                 )
             )
@@ -86,10 +95,24 @@ def main(page: ft.Page):
 
     def send_message_click(e):
         if new_message.value != "":
+            emote_map = {
+                "baseg": Emote(id="62306782b88633b42c0bdd7b", name="baseg"),
+            }
             page.pubsub.send_all(
                 Message(
-                    page.session.get("user_name"),
-                    new_message.value,
+                    User(
+                        name=page.session.get("user_name"),
+                        badges=[
+                            Badge(
+                                "Prime gaming", "bbbe0db0-a598-423e-86d0-f9fb98ca1933"
+                            )
+                        ],
+                        chat_color="#ff0000",
+                    ),
+                    elements=[
+                        emote_map[element] if element in emote_map else element
+                        for element in new_message.value.split(" ")
+                    ],
                     message_type="chat_message",
                 )
             )
@@ -101,7 +124,9 @@ def main(page: ft.Page):
         if message.message_type == "chat_message":
             m = ChatMessage(message, page.window_width)
         elif message.message_type == "login_message":
-            m = ft.Text(message.text, italic=True, color=ft.colors.BLACK45, size=12)
+            m = ft.Text(
+                message.elements[0], italic=True, color=ft.colors.BLACK45, size=12
+            )
         chat.controls.append(m)
         page.update()
 
