@@ -11,8 +11,6 @@ import flet as ft
 
 # from sqlalchemy.sql.compiler import selectable
 
-_FONT_SIZE = 18
-
 
 class AsyncKeyValueStorage(ABC):
     async def get(self, key) -> Any:
@@ -26,14 +24,18 @@ class AsyncKeyValueStorage(ABC):
 
 
 class MemoryOnlyStorage(AsyncKeyValueStorage):
+    def __init__(self, page: ft.Page) -> None:
+        super().__init__()
+        self.page = page
+
     async def get(self, key) -> Any:
-        return await ft.session.get_async(key)
+        return self.page.session.get(key)
 
     async def set(self, key, value):
-        await ft.session.set_async(key, value)
+        self.page.session.set(key, value)
 
     async def remove(self, key):
-        await ft.session.remove_async(key)
+        self.page.session.remove(key)
 
 
 @dataclass
@@ -101,10 +103,8 @@ class FontSizeSubscriber(ABC):
 
 
 class ChatText(ft.Text, FontSizeSubscriber):
-    def __init__(self, text: str, color: str, weight=""):
-        super().__init__(
-            text, size=_FONT_SIZE, weight=weight, color=color, selectable=True
-        )
+    def __init__(self, text: str, color: str, size: int, weight=""):
+        super().__init__(text, size=size, weight=weight, color=color, selectable=True)
 
     async def on_font_size_changed(self, _, new_font_size: int):
         self.size = new_font_size
@@ -127,12 +127,13 @@ class ChatEmote(ft.Image, FontSizeSubscriber):
 
 
 class ChatMessage(ft.Row):
-    def __init__(self, message: Message, page: ft.Page):
+    def __init__(self, message: Message, page: ft.Page, font_size: int):
         super().__init__()
         self.vertical_alignment = "start"
         self.wrap = True
         self.width = page.width
         self.page = page
+        self.font_size = font_size
         self.spacing = 5
         self.vertical_alignment = ft.CrossAxisAlignment.CENTER
 
@@ -140,20 +141,25 @@ class ChatMessage(ft.Row):
 
     def add_control_elements(self, message):
         self.controls = [
-            ChatBadge(badge.get_url(), _FONT_SIZE) for badge in message.user.badges
+            ChatBadge(badge.get_url(), self.font_size) for badge in message.user.badges
         ]
 
         self.controls.append(
-            ChatText(f"{message.user.name}: ", message.user.chat_color, weight="bold")
+            ChatText(
+                f"{message.user.name}: ",
+                message.user.chat_color,
+                self.font_size,
+                weight="bold",
+            )
         )
 
         for element in message.elements:
             if type(element) == str:
-                result = ChatText(element, ft.colors.WHITE)
+                result = ChatText(element, ft.colors.WHITE, self.font_size)
             elif type(element) == Emote:
                 result = ChatEmote(
                     src=element.get_url(),
-                    height=_FONT_SIZE * 2,
+                    height=self.font_size * 2,
                 )
             else:
                 raise TypeError
@@ -170,15 +176,16 @@ class ChatMessage(ft.Row):
         )
 
 
-async def settings_view(page: ft.Page, font_size_pubsub: PubSub) -> ft.View:
+async def settings_view(
+    page: ft.Page, font_size_pubsub: PubSub, storage: AsyncKeyValueStorage
+) -> ft.View:
     async def back_click(_):
         page.views.pop()
         await page.update_async()
 
     async def font_size_change(e):
-        global _FONT_SIZE
-        _FONT_SIZE = e.control.value
-        await font_size_pubsub.send(_FONT_SIZE)
+        await storage.set("font_size", e.control.value)
+        await font_size_pubsub.send(e.control.value)
 
     return ft.View(
         "/settings",
@@ -191,9 +198,11 @@ async def settings_view(page: ft.Page, font_size_pubsub: PubSub) -> ft.View:
                         icon=ft.icons.BRUSH,
                         content=ft.Column(
                             controls=[
-                                ft.Text("Font size:", size=_FONT_SIZE),
+                                ft.Text(
+                                    "Font size:", size=await storage.get("font_size")
+                                ),
                                 ft.Slider(
-                                    value=_FONT_SIZE,
+                                    value=await storage.get("font_size"),
                                     min=10,
                                     max=50,
                                     divisions=40,
@@ -283,14 +292,14 @@ class Hasharino:
 
         async def on_message(message: Message):
             if message.message_type == "chat_message":
-                m = ChatMessage(message, self.page)
+                m = ChatMessage(message, self.page, await self.storage.get("font_size"))
                 await m.subscribe_to_font_size_change(self.font_size_pubsub)
             elif message.message_type == "login_message":
                 m = ft.Text(
                     message.elements[0],
                     italic=True,
                     color=ft.colors.WHITE,
-                    size=_FONT_SIZE,
+                    size=await self.storage.get("font_size"),
                 )
             chat.controls.append(m)
             await self.page.update_async()
@@ -318,7 +327,7 @@ class Hasharino:
 
         async def settings_click(_):
             self.page.views.append(
-                await settings_view(self.page, self.font_size_pubsub)
+                await settings_view(self.page, self.font_size_pubsub, self.storage)
             )
             await self.page.update_async()
 
@@ -370,7 +379,9 @@ class Hasharino:
 
 
 async def main(page: ft.Page):
-    hasharino = Hasharino(PubSub(), MemoryOnlyStorage(), page)
+    storage = MemoryOnlyStorage(page)
+    await storage.set("font_size", 18)
+    hasharino = Hasharino(PubSub(), storage, page)
     await hasharino.run()
 
 
