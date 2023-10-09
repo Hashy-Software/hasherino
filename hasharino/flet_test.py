@@ -177,7 +177,7 @@ async def settings_view(page: ft.Page, font_size_pubsub: PubSub) -> ft.View:
 
 async def main(page: ft.Page):
     page.horizontal_alignment = "stretch"
-    page.title = "Hashy Chat"
+    page.title = "hasharino"
 
     async def join_chat_click(e):
         if not join_user_name.value:
