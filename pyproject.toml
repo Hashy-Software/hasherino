@@ -1,6 +1,6 @@
 [project]
-name = "hashychat"
-description = "hashychat is a twitch chat client built using Kivy"
+name = "hasharino"
+description = "hasharino is a twitch chat client built using flet"
 version = "0.1.4"
 authors = [
     { name = "Douglas", email = "hashy.software@gmail.com" }
@@ -34,10 +34,10 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project.urls]
-"Homepage" = "https://github.com/Hashy-Software/hashychat"
+"Homepage" = "https://github.com/Hashy-Software/hasharino"
 
 [project.scripts]
-hashychat = "hashychat.main:main"
+hasharino = "hasharino.main:main"
 
 [project.optional-dependencies]
 dev = []
