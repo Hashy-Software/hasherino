@@ -371,21 +371,21 @@ class Hasharino:
         self.storage = storage
         self.page = page
 
+    async def login_click(self, _):
+        self.page.dialog.open = True
+        await self.page.update_async()
+
+    async def settings_click(self, _):
+        self.page.views.append(
+            await settings_view(self.page, self.font_size_pubsub, self.storage)
+        )
+        await self.page.update_async()
+
     async def run(self):
         self.page.horizontal_alignment = "stretch"
         self.page.title = "hasharino"
 
         self.page.dialog = AccountDialog(self.storage)
-
-        async def login_click(e):
-            self.page.dialog.open = True
-            await self.page.update_async()
-
-        async def settings_click(_):
-            self.page.views.append(
-                await settings_view(self.page, self.font_size_pubsub, self.storage)
-            )
-            await self.page.update_async()
 
         chat_container = ChatContainer(self.storage, self.font_size_pubsub)
         await self.page.pubsub.subscribe_async(chat_container.on_message)
@@ -394,8 +394,8 @@ class Hasharino:
         await self.page.add_async(
             ft.Row(
                 [
-                    ft.IconButton(icon=ft.icons.PERSON, on_click=login_click),
-                    ft.IconButton(icon=ft.icons.SETTINGS, on_click=settings_click),
+                    ft.IconButton(icon=ft.icons.PERSON, on_click=self.login_click),
+                    ft.IconButton(icon=ft.icons.SETTINGS, on_click=self.settings_click),
                 ]
             ),
             chat_container,
