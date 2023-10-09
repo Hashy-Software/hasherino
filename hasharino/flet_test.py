@@ -331,6 +331,38 @@ class NewMessageRow(ft.Row):
             await self.page.update_async()
 
 
+class ChatContainer(ft.Container):
+    def __init__(self, storage: AsyncKeyValueStorage, font_size_pubsub: PubSub):
+        self.storage = storage
+        self.font_size_pubsub = font_size_pubsub
+        self.chat = ft.ListView(
+            expand=True,
+            spacing=10,
+            auto_scroll=True,
+        )
+        super().__init__(
+            content=self.chat,
+            border=ft.border.all(1, ft.colors.OUTLINE),
+            border_radius=5,
+            padding=10,
+            expand=True,
+        )
+
+    async def on_message(self, message: Message):
+        if message.message_type == "chat_message":
+            m = ChatMessage(message, self.page, await self.storage.get("font_size"))
+            await m.subscribe_to_font_size_change(self.font_size_pubsub)
+        elif message.message_type == "login_message":
+            m = ft.Text(
+                message.elements[0],
+                italic=True,
+                color=ft.colors.WHITE,
+                size=await self.storage.get("font_size"),
+            )
+        self.chat.controls.append(m)
+        await self.page.update_async()
+
+
 class Hasharino:
     def __init__(
         self, font_size_pubsub: PubSub, storage: AsyncKeyValueStorage, page: ft.Page
@@ -342,29 +374,6 @@ class Hasharino:
     async def run(self):
         self.page.horizontal_alignment = "stretch"
         self.page.title = "hasharino"
-
-        # Chat messages
-        chat = ft.ListView(
-            expand=True,
-            spacing=10,
-            auto_scroll=True,
-        )
-
-        async def on_message(message: Message):
-            if message.message_type == "chat_message":
-                m = ChatMessage(message, self.page, await self.storage.get("font_size"))
-                await m.subscribe_to_font_size_change(self.font_size_pubsub)
-            elif message.message_type == "login_message":
-                m = ft.Text(
-                    message.elements[0],
-                    italic=True,
-                    color=ft.colors.WHITE,
-                    size=await self.storage.get("font_size"),
-                )
-            chat.controls.append(m)
-            await self.page.update_async()
-
-        await self.page.pubsub.subscribe_async(on_message)
 
         self.page.dialog = AccountDialog(self.storage)
 
@@ -378,6 +387,9 @@ class Hasharino:
             )
             await self.page.update_async()
 
+        chat_container = ChatContainer(self.storage, self.font_size_pubsub)
+        await self.page.pubsub.subscribe_async(chat_container.on_message)
+
         # Add everything to the page
         await self.page.add_async(
             ft.Row(
@@ -386,13 +398,7 @@ class Hasharino:
                     ft.IconButton(icon=ft.icons.SETTINGS, on_click=settings_click),
                 ]
             ),
-            ft.Container(
-                content=chat,
-                border=ft.border.all(1, ft.colors.OUTLINE),
-                border_radius=5,
-                padding=10,
-                expand=True,
-            ),
+            chat_container,
             NewMessageRow(self.storage),
         )
 
