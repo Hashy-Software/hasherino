@@ -186,11 +186,11 @@ class SettingsView(ft.View):
             "/settings",
             [
                 ft.IconButton(icon=ft.icons.ARROW_BACK, on_click=self._back_click),
-                ft.Tabs(tabs=[await self._get_appearence_tab()]),
+                ft.Tabs(tabs=[await self._get_appearance_tab()]),
             ],
         )
 
-    async def _get_appearence_tab(self) -> ft.Tab:
+    async def _get_appearance_tab(self) -> ft.Tab:
         return ft.Tab(
             text="Appearance",
             icon=ft.icons.BRUSH,
