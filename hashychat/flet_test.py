@@ -2,14 +2,15 @@
 TODO:
 
 """
+from abc import ABC
 from dataclasses import dataclass
+from typing import Any, Awaitable
 
 import flet as ft
 
 # from sqlalchemy.sql.compiler import selectable
 
 _FONT_SIZE = 18
-_EMOTE_HEIGHT = _FONT_SIZE * 2
 
 
 @dataclass
@@ -44,37 +45,134 @@ class Message:
     message_type: str
 
 
+class PubSub:
+    def __init__(self) -> None:
+        self.funcs: set[Awaitable] = set()
+
+    async def subscribe(self, func: Awaitable):
+        self.funcs.add(func)
+
+    async def subscribe_all(self, funcs: list[Awaitable]):
+        self.funcs.update(funcs)
+
+    async def send(self, message: Any):
+        for func in self.funcs:
+            await func(func.__self__, message)
+
+
+class FontSizeSubscriber(ABC):
+    async def on_font_size_changed(self, _, new_font_size: int):
+        ...
+
+
+class ChatText(ft.Text, FontSizeSubscriber):
+    def __init__(self, text: str, color: str, weight=""):
+        super().__init__(
+            text, size=_FONT_SIZE, weight=weight, color=color, selectable=True
+        )
+
+    async def on_font_size_changed(self, _, new_font_size: int):
+        self.size = new_font_size
+        await self.page.update_async()
+
+
+class ChatBadge(ft.Image, FontSizeSubscriber):
+    def __init__(self, src: str, height: int):
+        super().__init__(src=src, height=height)
+
+    async def on_font_size_changed(self, _, new_font_size: int):
+        self.height = new_font_size
+        await self.page.update_async()
+
+
+class ChatEmote(ft.Image, FontSizeSubscriber):
+    async def on_font_size_changed(self, _, new_font_size: int):
+        self.height = new_font_size * 2
+        await self.page.update_async()
+
+
 class ChatMessage(ft.Row):
-    def __init__(self, message: Message, width: int):
+    def __init__(self, message: Message, page: ft.Page):
         super().__init__()
         self.vertical_alignment = "start"
         self.wrap = True
-        self.width = width
+        self.width = page.width
+        self.page = page
         self.spacing = 5
         self.vertical_alignment = ft.CrossAxisAlignment.CENTER
-        username = ft.Text(
-            f"{message.user.name}: ",
-            size=_FONT_SIZE,
-            color=message.user.chat_color,
-            weight="bold",
-        )
+
+        self.add_control_elements(message)
+
+    def add_control_elements(self, message):
         self.controls = [
-            ft.Image(src=badge.get_url(), height=_FONT_SIZE)
-            for badge in message.user.badges
+            ChatBadge(badge.get_url(), _FONT_SIZE) for badge in message.user.badges
         ]
-        self.controls.append(username)
+
+        self.controls.append(
+            ChatText(f"{message.user.name}: ", message.user.chat_color, weight="bold")
+        )
+
         for element in message.elements:
             if type(element) == str:
-                result = ft.Text(element, selectable=True, size=_FONT_SIZE)
+                result = ChatText(element, ft.colors.WHITE)
             elif type(element) == Emote:
-                result = ft.Image(
+                result = ChatEmote(
                     src=element.get_url(),
-                    height=_EMOTE_HEIGHT,
+                    height=_FONT_SIZE * 2,
                 )
             else:
                 raise TypeError
 
             self.controls.append(result)
+
+    async def subscribe_to_font_size_change(self, pubsub: PubSub):
+        await pubsub.subscribe_all(
+            [
+                control.on_font_size_changed
+                for control in self.controls
+                if isinstance(control, FontSizeSubscriber)
+            ]
+        )
+
+
+async def settings_view(page: ft.Page, font_size_pubsub: PubSub) -> ft.View:
+    async def back_click(_):
+        page.views.pop()
+        await page.update_async()
+
+    async def font_size_change(e):
+        global _FONT_SIZE
+        _FONT_SIZE = e.control.value
+        await font_size_pubsub.send(_FONT_SIZE)
+
+    return ft.View(
+        "/settings",
+        [
+            ft.IconButton(icon=ft.icons.ARROW_BACK, on_click=back_click),
+            ft.Tabs(
+                tabs=[
+                    ft.Tab(
+                        text="Appearance",
+                        icon=ft.icons.BRUSH,
+                        content=ft.Column(
+                            controls=[
+                                ft.Text("Font size:", size=_FONT_SIZE),
+                                ft.Slider(
+                                    value=_FONT_SIZE,
+                                    min=10,
+                                    max=50,
+                                    divisions=40,
+                                    label="{value}",
+                                    width=500,
+                                    on_change_end=font_size_change,
+                                ),
+                            ],
+                        ),
+                    )
+                ]
+            ),
+        ],
+    )
 
 
 async def main(page: ft.Page):
@@ -126,9 +224,12 @@ async def main(page: ft.Page):
             await new_message.focus_async()
             await page.update_async()
 
+    font_size_pubsub = PubSub()
+
     async def on_message(message: Message):
         if message.message_type == "chat_message":
-            m = ChatMessage(message, page.window_width)
+            m = ChatMessage(message, page)
+            await m.subscribe_to_font_size_change(font_size_pubsub)
         elif message.message_type == "login_message":
             m = ft.Text(
                 message.elements[0], italic=True, color=ft.colors.WHITE, size=_FONT_SIZE
@@ -153,8 +254,12 @@ async def main(page: ft.Page):
         actions_alignment="end",
     )
 
-    async def login_click(e):
+    async def login_click(_):
         page.dialog.open = True
+        await page.update_async()
+
+    async def settings_click(_):
+        page.views.append(await settings_view(page, font_size_pubsub))
         await page.update_async()
 
     # Chat messages
@@ -178,7 +283,12 @@ async def main(page: ft.Page):
 
     # Add everything to the page
     await page.add_async(
-        ft.ElevatedButton("Login", on_click=login_click),
+        ft.Row(
+            [
+                ft.IconButton(icon=ft.icons.PERSON, on_click=login_click),
+                ft.IconButton(icon=ft.icons.SETTINGS, on_click=settings_click),
+            ]
+        ),
         ft.Container(
             content=chat,
             border=ft.border.all(1, ft.colors.OUTLINE),
@@ -199,4 +309,5 @@ async def main(page: ft.Page):
     )
 
 
-ft.app(target=main)
+if __name__ == "__main__":
+    ft.app(target=main)
