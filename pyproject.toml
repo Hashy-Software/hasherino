@@ -17,13 +17,9 @@ readme = "README.md"
 dependencies = [
     "aiohttp >= 3.8.5",
     "websockets >= 11.0.3",
-    "kivy >= 2.2.1",
-    "kivymd >= 1.1.1",
     "keyring >= 24.2.0",
-    "sqlalchemy >= 2.0.19",
-    "aiosqlite >= 0.19.0",
-    "alembic >= 1.11.2",
     "uvloop >= 0.17.0",
+    "flet >= 0.10.3",
 ]
 
 [tool.isort]
