@@ -246,13 +246,6 @@ class AccountDialog(ft.AlertDialog):
         else:
             await self.storage.set("user_name", self.join_user_name.value)
             self.page.dialog.open = False
-            await self.page.pubsub.send_all_async(
-                Message(
-                    user=User(name=self.join_user_name.value),
-                    elements=[f"{self.join_user_name.value} has joined the chat."],
-                    message_type="login_message",
-                )
-            )
             await self.page.update_async()
 
 
