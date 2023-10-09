@@ -14,6 +14,28 @@ import flet as ft
 _FONT_SIZE = 18
 
 
+class AsyncKeyValueStorage(ABC):
+    async def get(self, key) -> Any:
+        pass
+
+    async def set(self, key, value):
+        pass
+
+    async def remove(self, key):
+        pass
+
+
+class MemoryOnlyStorage(AsyncKeyValueStorage):
+    async def get(self, key) -> Any:
+        return await ft.session.get_async(key)
+
+    async def set(self, key, value):
+        await ft.session.set_async(key, value)
+
+    async def remove(self, key):
+        await ft.session.remove_async(key)
+
+
 @dataclass
 class Badge:
     name: str
