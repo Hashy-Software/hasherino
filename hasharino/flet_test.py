@@ -94,11 +94,11 @@ class PubSub:
 
     async def send(self, message: Any):
         for func in self.funcs:
-            await func(func.__self__, message)
+            await func(message)
 
 
 class FontSizeSubscriber(ABC):
-    async def on_font_size_changed(self, _, new_font_size: int):
+    async def on_font_size_changed(self, new_font_size: int):
         ...
 
 
@@ -106,7 +106,7 @@ class ChatText(ft.Text, FontSizeSubscriber):
     def __init__(self, text: str, color: str, size: int, weight=""):
         super().__init__(text, size=size, weight=weight, color=color, selectable=True)
 
-    async def on_font_size_changed(self, _, new_font_size: int):
+    async def on_font_size_changed(self, new_font_size: int):
         self.size = new_font_size
         await self.page.update_async()
 
@@ -115,13 +115,13 @@ class ChatBadge(ft.Image, FontSizeSubscriber):
     def __init__(self, src: str, height: int):
         super().__init__(src=src, height=height)
 
-    async def on_font_size_changed(self, _, new_font_size: int):
+    async def on_font_size_changed(self, new_font_size: int):
         self.height = new_font_size
         await self.page.update_async()
 
 
 class ChatEmote(ft.Image, FontSizeSubscriber):
-    async def on_font_size_changed(self, _, new_font_size: int):
+    async def on_font_size_changed(self, new_font_size: int):
         self.height = new_font_size * 2
         await self.page.update_async()
 
