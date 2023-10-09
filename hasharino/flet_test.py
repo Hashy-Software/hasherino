@@ -256,6 +256,81 @@ class AccountDialog(ft.AlertDialog):
             await self.page.update_async()
 
 
+class NewMessageRow(ft.Row):
+    def __init__(self, storage: AsyncKeyValueStorage):
+        self.storage = storage
+
+        # A new message entry form
+        self.new_message = ft.TextField(
+            hint_text="Write a message...",
+            autofocus=True,
+            shift_enter=True,
+            min_lines=1,
+            max_lines=5,
+            filled=True,
+            expand=True,
+            on_submit=self.send_message_click,
+            on_focus=self.new_message_focus,
+        )
+        super().__init__(
+            [
+                self.new_message,
+                ft.IconButton(
+                    icon=ft.icons.SEND_ROUNDED,
+                    tooltip="Send message",
+                    on_click=self.send_message_click,
+                ),
+            ]
+        )
+
+    async def new_message_focus(self, e):
+        if await self.storage.get("user_name"):
+            e.control.prefix = ft.Text(f"{await self.storage.get('user_name')}: ")
+            await self.page.update_async()
+
+    async def send_message_click(self, _):
+        if self.new_message.value != "":
+            emote_map = {
+                "catFight": Emote(
+                    id="643d8003f6c0390df3367b04",
+                    name="catFight",
+                    source=EmoteSource.SEVENTV,
+                ),
+                "Slapahomie": Emote(
+                    id="60f22ed831ba6ae62262f234",
+                    name="Slapahomie",
+                    source=EmoteSource.SEVENTV,
+                ),
+                "hola": Emote(
+                    id="9b76f5f0f02d42738d337082c0872b2c",
+                    name="hola",
+                    source=EmoteSource.TWITCH,
+                ),
+            }
+            await self.page.pubsub.send_all_async(
+                Message(
+                    User(
+                        name=await self.storage.get("user_name"),
+                        badges=[
+                            Badge(
+                                "Prime gaming",
+                                "bbbe0db0-a598-423e-86d0-f9fb98ca1933",
+                            )
+                        ],
+                        chat_color="#ff0000",
+                    ),
+                    elements=[
+                        emote_map[element] if element in emote_map else element
+                        for element in self.new_message.value.split(" ")
+                    ],
+                    message_type="chat_message",
+                )
+            )
+            self.new_message.value = ""
+            await self.new_message.focus_async()
+            await self.page.update_async()
+
+
 class Hasharino:
     def __init__(
         self, font_size_pubsub: PubSub, storage: AsyncKeyValueStorage, page: ft.Page
@@ -268,47 +343,12 @@ class Hasharino:
         self.page.horizontal_alignment = "stretch"
         self.page.title = "hasharino"
 
-        async def send_message_click(e):
-            if new_message.value != "":
-                emote_map = {
-                    "catFight": Emote(
-                        id="643d8003f6c0390df3367b04",
-                        name="catFight",
-                        source=EmoteSource.SEVENTV,
-                    ),
-                    "Slapahomie": Emote(
-                        id="60f22ed831ba6ae62262f234",
-                        name="Slapahomie",
-                        source=EmoteSource.SEVENTV,
-                    ),
-                    "hola": Emote(
-                        id="9b76f5f0f02d42738d337082c0872b2c",
-                        name="hola",
-                        source=EmoteSource.TWITCH,
-                    ),
-                }
-                await self.page.pubsub.send_all_async(
-                    Message(
-                        User(
-                            name=await self.storage.get("user_name"),
-                            badges=[
-                                Badge(
-                                    "Prime gaming",
-                                    "bbbe0db0-a598-423e-86d0-f9fb98ca1933",
-                                )
-                            ],
-                            chat_color="#ff0000",
-                        ),
-                        elements=[
-                            emote_map[element] if element in emote_map else element
-                            for element in new_message.value.split(" ")
-                        ],
-                        message_type="chat_message",
-                    )
-                )
-                new_message.value = ""
-                await new_message.focus_async()
-                await self.page.update_async()
+        # Chat messages
+        chat = ft.ListView(
+            expand=True,
+            spacing=10,
+            auto_scroll=True,
+        )
 
         async def on_message(message: Message):
             if message.message_type == "chat_message":
@@ -338,31 +378,6 @@ class Hasharino:
             )
             await self.page.update_async()
 
-        # Chat messages
-        chat = ft.ListView(
-            expand=True,
-            spacing=10,
-            auto_scroll=True,
-        )
-
-        async def new_message_focus(e):
-            if self.storage.get("user_name"):
-                e.control.prefix = ft.Text(f"{await self.storage.get('user_name')}: ")
-                await self.page.update_async()
-
-        # A new message entry form
-        new_message = ft.TextField(
-            hint_text="Write a message...",
-            autofocus=True,
-            shift_enter=True,
-            min_lines=1,
-            max_lines=5,
-            filled=True,
-            expand=True,
-            on_submit=send_message_click,
-            on_focus=new_message_focus,
-        )
-
         # Add everything to the page
         await self.page.add_async(
             ft.Row(
@@ -378,16 +393,7 @@ class Hasharino:
                 padding=10,
                 expand=True,
             ),
-            ft.Row(
-                [
-                    new_message,
-                    ft.IconButton(
-                        icon=ft.icons.SEND_ROUNDED,
-                        tooltip="Send message",
-                        on_click=send_message_click,
-                    ),
-                ]
-            ),
+            NewMessageRow(self.storage),
         )
 
 
