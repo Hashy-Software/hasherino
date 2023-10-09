@@ -4,6 +4,7 @@ TODO:
 """
 from abc import ABC
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Awaitable
 
 import flet as ft
@@ -29,13 +30,25 @@ class User:
     chat_color: str | None = None
 
 
+class EmoteSource(Enum):
+    TWITCH = 0
+    SEVENTV = 1
+
+
 @dataclass
 class Emote:
     name: str
     id: str
+    source: EmoteSource
 
     def get_url(self) -> str:
-        return f"https://cdn.7tv.app/emote/{self.id}/4x.webp"
+        match self.source:
+            case EmoteSource.SEVENTV:
+                return f"https://cdn.7tv.app/emote/{self.id}/4x.webp"
+            case EmoteSource.TWITCH:
+                return f"https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_{self.id}/default/dark/3.0"
+            case _:
+                raise TypeError
 
 
 @dataclass
@@ -199,8 +212,21 @@ async def main(page: ft.Page):
     async def send_message_click(e):
         if new_message.value != "":
             emote_map = {
-                "catFight": Emote(id="643d8003f6c0390df3367b04", name="catFight"),
-                "Slapahomie": Emote(id="60f22ed831ba6ae62262f234", name="Slapahomie"),
+                "catFight": Emote(
+                    id="643d8003f6c0390df3367b04",
+                    name="catFight",
+                    source=EmoteSource.SEVENTV,
+                ),
+                "Slapahomie": Emote(
+                    id="60f22ed831ba6ae62262f234",
+                    name="Slapahomie",
+                    source=EmoteSource.SEVENTV,
+                ),
+                "hola": Emote(
+                    id="9b76f5f0f02d42738d337082c0872b2c",
+                    name="hola",
+                    source=EmoteSource.TWITCH,
+                ),
             }
             await page.pubsub.send_all_async(
                 Message(
