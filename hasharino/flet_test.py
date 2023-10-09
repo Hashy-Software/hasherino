@@ -9,6 +9,8 @@ from typing import Any, Awaitable
 
 import flet as ft
 
+from hasharino import helix, user_auth
+
 # from sqlalchemy.sql.compiler import selectable
 
 
@@ -371,7 +373,20 @@ class Hasharino:
         self.page = page
 
     async def login_click(self, _):
-        self.page.dialog.open = True
+        app_id = await self.storage.get("app_id")
+        token = await user_auth.request_oauth_token(app_id)
+        users = await helix.get_users(app_id, token, [])
+
+        if users:
+            await self.storage.set("token", token)
+            await self.storage.set("user_name", users[0].display_name)
+            await self.storage.set("user", users[0])
+        else:
+            self.page.dialog = ft.AlertDialog(
+                content=ft.Text("Failed to authenticate.")
+            )
+            self.page.dialog.open = True
+
         await self.page.update_async()
 
     async def settings_click(self, _):
@@ -394,7 +409,7 @@ class Hasharino:
         await self.page.add_async(
             ft.Row(
                 [
-                    ft.IconButton(icon=ft.icons.PERSON, on_click=self.login_click),
+                    ft.IconButton(icon=ft.icons.LOGIN, on_click=self.login_click),
                     ft.IconButton(icon=ft.icons.SETTINGS, on_click=self.settings_click),
                 ]
             ),
@@ -406,6 +421,7 @@ class Hasharino:
 async def main(page: ft.Page):
     storage = MemoryOnlyStorage(page)
     await storage.set("chat_font_size", 18)
+    await storage.set("app_id", "hvmj7blkwy2gw3xf820n47i85g4sub")
     hasharino = Hasharino(PubSub(), storage, page)
     await hasharino.run()
 
