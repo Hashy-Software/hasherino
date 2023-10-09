@@ -257,8 +257,9 @@ class AccountDialog(ft.AlertDialog):
 
 
 class NewMessageRow(ft.Row):
-    def __init__(self, storage: AsyncKeyValueStorage):
+    def __init__(self, storage: AsyncKeyValueStorage, chat_message_pubsub: PubSub):
         self.storage = storage
+        self.chat_message_pubsub = chat_message_pubsub
 
         # A new message entry form
         self.new_message = ft.TextField(
@@ -307,7 +308,7 @@ class NewMessageRow(ft.Row):
                     source=EmoteSource.TWITCH,
                 ),
             }
-            await self.page.pubsub.send_all_async(
+            await self.chat_message_pubsub.send(
                 Message(
                     User(
                         name=await self.storage.get("user_name"),
@@ -388,7 +389,8 @@ class Hasharino:
         self.page.dialog = AccountDialog(self.storage)
 
         chat_container = ChatContainer(self.storage, self.font_size_pubsub)
-        await self.page.pubsub.subscribe_async(chat_container.on_message)
+        chat_message_pubsub = PubSub()
+        await chat_message_pubsub.subscribe(chat_container.on_message)
 
         # Add everything to the page
         await self.page.add_async(
@@ -399,7 +401,7 @@ class Hasharino:
                 ]
             ),
             chat_container,
-            NewMessageRow(self.storage),
+            NewMessageRow(self.storage, chat_message_pubsub),
         )
 
 
