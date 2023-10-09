@@ -176,47 +176,50 @@ class ChatMessage(ft.Row):
         )
 
 
-async def settings_view(
-    page: ft.Page, font_size_pubsub: PubSub, storage: AsyncKeyValueStorage
-) -> ft.View:
-    async def back_click(_):
-        page.views.pop()
-        await page.update_async()
+class SettingsView(ft.View):
+    def __init__(self, font_size_pubsub: PubSub, storage: AsyncKeyValueStorage):
+        self.font_size_pubsub = font_size_pubsub
+        self.storage = storage
 
-    async def font_size_change(e):
-        await storage.set("font_size", e.control.value)
-        await font_size_pubsub.send(e.control.value)
+    async def init(self):
+        super().__init__(
+            "/settings",
+            [
+                ft.IconButton(icon=ft.icons.ARROW_BACK, on_click=self._back_click),
+                ft.Tabs(tabs=[await self._get_appearence_tab()]),
+            ],
+        )
 
-    return ft.View(
-        "/settings",
-        [
-            ft.IconButton(icon=ft.icons.ARROW_BACK, on_click=back_click),
-            ft.Tabs(
-                tabs=[
-                    ft.Tab(
-                        text="Appearance",
-                        icon=ft.icons.BRUSH,
-                        content=ft.Column(
-                            controls=[
-                                ft.Text(
-                                    "Font size:", size=await storage.get("font_size")
-                                ),
-                                ft.Slider(
-                                    value=await storage.get("font_size"),
-                                    min=10,
-                                    max=50,
-                                    divisions=40,
-                                    label="{value}",
-                                    width=500,
-                                    on_change_end=font_size_change,
-                                ),
-                            ],
-                        ),
-                    )
-                ]
+    async def _get_appearence_tab(self) -> ft.Tab:
+        return ft.Tab(
+            text="Appearance",
+            icon=ft.icons.BRUSH,
+            content=ft.Column(
+                controls=[
+                    ft.Text(
+                        "Font size:",
+                        size=await self.storage.get("font_size"),
+                    ),
+                    ft.Slider(
+                        value=await self.storage.get("font_size"),
+                        min=10,
+                        max=50,
+                        divisions=40,
+                        label="{value}",
+                        width=500,
+                        on_change_end=self._font_size_change,
+                    ),
+                ],
             ),
-        ],
-    )
+        )
+
+    async def _back_click(self, _):
+        self.page.views.pop()
+        await self.page.update_async()
+
+    async def _font_size_change(self, e):
+        await self.storage.set("font_size", e.control.value)
+        await self.font_size_pubsub.send(e.control.value)
 
 
 class AccountDialog(ft.AlertDialog):
@@ -370,9 +373,9 @@ class Hasharino:
         await self.page.update_async()
 
     async def settings_click(self, _):
-        self.page.views.append(
-            await settings_view(self.page, self.font_size_pubsub, self.storage)
-        )
+        sv = SettingsView(self.font_size_pubsub, self.storage)
+        await sv.init()
+        self.page.views.append(sv)
         await self.page.update_async()
 
     async def run(self):
