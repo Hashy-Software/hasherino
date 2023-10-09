@@ -197,11 +197,11 @@ class SettingsView(ft.View):
             content=ft.Column(
                 controls=[
                     ft.Text(
-                        "Font size:",
-                        size=await self.storage.get("font_size"),
+                        "Chat font size:",
+                        size=16,
                     ),
                     ft.Slider(
-                        value=await self.storage.get("font_size"),
+                        value=await self.storage.get("chat_font_size"),
                         min=10,
                         max=50,
                         divisions=40,
@@ -218,7 +218,7 @@ class SettingsView(ft.View):
         await self.page.update_async()
 
     async def _font_size_change(self, e):
-        await self.storage.set("font_size", e.control.value)
+        await self.storage.set("chat_font_size", e.control.value)
         await self.font_size_pubsub.send(e.control.value)
 
 
@@ -347,14 +347,16 @@ class ChatContainer(ft.Container):
 
     async def on_message(self, message: Message):
         if message.message_type == "chat_message":
-            m = ChatMessage(message, self.page, await self.storage.get("font_size"))
+            m = ChatMessage(
+                message, self.page, await self.storage.get("chat_font_size")
+            )
             await m.subscribe_to_font_size_change(self.font_size_pubsub)
         elif message.message_type == "login_message":
             m = ft.Text(
                 message.elements[0],
                 italic=True,
                 color=ft.colors.WHITE,
-                size=await self.storage.get("font_size"),
+                size=await self.storage.get("chat_font_size"),
             )
         self.chat.controls.append(m)
         await self.page.update_async()
@@ -403,7 +405,7 @@ class Hasharino:
 
 async def main(page: ft.Page):
     storage = MemoryOnlyStorage(page)
-    await storage.set("font_size", 18)
+    await storage.set("chat_font_size", 18)
     hasharino = Hasharino(PubSub(), storage, page)
     await hasharino.run()
 
