@@ -219,6 +219,43 @@ async def settings_view(
     )
 
 
+class AccountDialog(ft.AlertDialog):
+    def __init__(self, storage: AsyncKeyValueStorage):
+        # A dialog asking for a user display name
+        self.join_user_name = ft.TextField(
+            label="Enter your name to join the chat",
+            autofocus=True,
+            on_submit=self.join_chat_click,
+        )
+        self.storage = storage
+        super().__init__(
+            open=True,
+            modal=True,
+            title=ft.Text("Welcome!"),
+            content=ft.Column([self.join_user_name], width=300, height=70, tight=True),
+            actions=[
+                ft.ElevatedButton(text="Join chat", on_click=self.join_chat_click)
+            ],
+            actions_alignment="end",
+        )
+
+    async def join_chat_click(self, _):
+        if not self.join_user_name.value:
+            self.join_user_name.error_text = "Name cannot be blank!"
+            await self.join_user_name.update_async()
+        else:
+            await self.storage.set("user_name", self.join_user_name.value)
+            self.page.dialog.open = False
+            await self.page.pubsub.send_all_async(
+                Message(
+                    user=User(name=self.join_user_name.value),
+                    elements=[f"{self.join_user_name.value} has joined the chat."],
+                    message_type="login_message",
+                )
+            )
+            await self.page.update_async()
+
+
 class Hasharino:
     def __init__(
         self, font_size_pubsub: PubSub, storage: AsyncKeyValueStorage, page: ft.Page
@@ -230,23 +267,6 @@ class Hasharino:
     async def run(self):
         self.page.horizontal_alignment = "stretch"
         self.page.title = "hasharino"
-
-        async def join_chat_click(e):
-            if not join_user_name.value:
-                join_user_name.error_text = "Name cannot be blank!"
-                await join_user_name.update_async()
-            else:
-                self.page.session.set("user_name", join_user_name.value)
-                self.page.dialog.open = False
-                new_message.prefix = ft.Text(f"{join_user_name.value}: ")
-                await self.page.pubsub.send_all_async(
-                    Message(
-                        user=User(name=join_user_name.value),
-                        elements=[f"{join_user_name.value} has joined the chat."],
-                        message_type="login_message",
-                    )
-                )
-                await self.page.update_async()
 
         async def send_message_click(e):
             if new_message.value != "":
@@ -270,7 +290,7 @@ class Hasharino:
                 await self.page.pubsub.send_all_async(
                     Message(
                         User(
-                            name=self.page.session.get("user_name"),
+                            name=await self.storage.get("user_name"),
                             badges=[
                                 Badge(
                                     "Prime gaming",
@@ -306,22 +326,9 @@ class Hasharino:
 
         await self.page.pubsub.subscribe_async(on_message)
 
-        # A dialog asking for a user display name
-        join_user_name = ft.TextField(
-            label="Enter your name to join the chat",
-            autofocus=True,
-            on_submit=join_chat_click,
-        )
-        self.page.dialog = ft.AlertDialog(
-            open=True,
-            modal=True,
-            title=ft.Text("Welcome!"),
-            content=ft.Column([join_user_name], width=300, height=70, tight=True),
-            actions=[ft.ElevatedButton(text="Join chat", on_click=join_chat_click)],
-            actions_alignment="end",
-        )
+        self.page.dialog = AccountDialog(self.storage)
 
-        async def login_click(_):
+        async def login_click(e):
             self.page.dialog.open = True
             await self.page.update_async()
 
@@ -338,6 +345,11 @@ class Hasharino:
             auto_scroll=True,
         )
 
+        async def new_message_focus(e):
+            if self.storage.get("user_name"):
+                e.control.prefix = ft.Text(f"{await self.storage.get('user_name')}: ")
+                await self.page.update_async()
+
         # A new message entry form
         new_message = ft.TextField(
             hint_text="Write a message...",
@@ -348,6 +360,7 @@ class Hasharino:
             filled=True,
             expand=True,
             on_submit=send_message_click,
+            on_focus=new_message_focus,
         )
 
         # Add everything to the page
