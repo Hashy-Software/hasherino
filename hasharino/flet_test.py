@@ -210,151 +210,168 @@ async def settings_view(page: ft.Page, font_size_pubsub: PubSub) -> ft.View:
     )
 
 
-async def main(page: ft.Page):
-    page.horizontal_alignment = "stretch"
-    page.title = "hasharino"
+class Hasharino:
+    def __init__(
+        self, font_size_pubsub: PubSub, storage: AsyncKeyValueStorage, page: ft.Page
+    ) -> None:
+        self.font_size_pubsub = font_size_pubsub
+        self.storage = storage
+        self.page = page
 
-    async def join_chat_click(e):
-        if not join_user_name.value:
-            join_user_name.error_text = "Name cannot be blank!"
-            await join_user_name.update_async()
-        else:
-            page.session.set("user_name", join_user_name.value)
-            page.dialog.open = False
-            new_message.prefix = ft.Text(f"{join_user_name.value}: ")
-            await page.pubsub.send_all_async(
-                Message(
-                    user=User(name=join_user_name.value),
-                    elements=[f"{join_user_name.value} has joined the chat."],
-                    message_type="login_message",
+    async def run(self):
+        self.page.horizontal_alignment = "stretch"
+        self.page.title = "hasharino"
+
+        async def join_chat_click(e):
+            if not join_user_name.value:
+                join_user_name.error_text = "Name cannot be blank!"
+                await join_user_name.update_async()
+            else:
+                self.page.session.set("user_name", join_user_name.value)
+                self.page.dialog.open = False
+                new_message.prefix = ft.Text(f"{join_user_name.value}: ")
+                await self.page.pubsub.send_all_async(
+                    Message(
+                        user=User(name=join_user_name.value),
+                        elements=[f"{join_user_name.value} has joined the chat."],
+                        message_type="login_message",
+                    )
                 )
-            )
-            await page.update_async()
+                await self.page.update_async()
 
-    async def send_message_click(e):
-        if new_message.value != "":
-            emote_map = {
-                "catFight": Emote(
-                    id="643d8003f6c0390df3367b04",
-                    name="catFight",
-                    source=EmoteSource.SEVENTV,
-                ),
-                "Slapahomie": Emote(
-                    id="60f22ed831ba6ae62262f234",
-                    name="Slapahomie",
-                    source=EmoteSource.SEVENTV,
-                ),
-                "hola": Emote(
-                    id="9b76f5f0f02d42738d337082c0872b2c",
-                    name="hola",
-                    source=EmoteSource.TWITCH,
-                ),
-            }
-            await page.pubsub.send_all_async(
-                Message(
-                    User(
-                        name=page.session.get("user_name"),
-                        badges=[
-                            Badge(
-                                "Prime gaming", "bbbe0db0-a598-423e-86d0-f9fb98ca1933"
-                            )
-                        ],
-                        chat_color="#ff0000",
+        async def send_message_click(e):
+            if new_message.value != "":
+                emote_map = {
+                    "catFight": Emote(
+                        id="643d8003f6c0390df3367b04",
+                        name="catFight",
+                        source=EmoteSource.SEVENTV,
                     ),
-                    elements=[
-                        emote_map[element] if element in emote_map else element
-                        for element in new_message.value.split(" ")
-                    ],
-                    message_type="chat_message",
+                    "Slapahomie": Emote(
+                        id="60f22ed831ba6ae62262f234",
+                        name="Slapahomie",
+                        source=EmoteSource.SEVENTV,
+                    ),
+                    "hola": Emote(
+                        id="9b76f5f0f02d42738d337082c0872b2c",
+                        name="hola",
+                        source=EmoteSource.TWITCH,
+                    ),
+                }
+                await self.page.pubsub.send_all_async(
+                    Message(
+                        User(
+                            name=self.page.session.get("user_name"),
+                            badges=[
+                                Badge(
+                                    "Prime gaming",
+                                    "bbbe0db0-a598-423e-86d0-f9fb98ca1933",
+                                )
+                            ],
+                            chat_color="#ff0000",
+                        ),
+                        elements=[
+                            emote_map[element] if element in emote_map else element
+                            for element in new_message.value.split(" ")
+                        ],
+                        message_type="chat_message",
+                    )
                 )
+                new_message.value = ""
+                await new_message.focus_async()
+                await self.page.update_async()
+
+        async def on_message(message: Message):
+            if message.message_type == "chat_message":
+                m = ChatMessage(message, self.page)
+                await m.subscribe_to_font_size_change(self.font_size_pubsub)
+            elif message.message_type == "login_message":
+                m = ft.Text(
+                    message.elements[0],
+                    italic=True,
+                    color=ft.colors.WHITE,
+                    size=_FONT_SIZE,
+                )
+            chat.controls.append(m)
+            await self.page.update_async()
+
+        await self.page.pubsub.subscribe_async(on_message)
+
+        # A dialog asking for a user display name
+        join_user_name = ft.TextField(
+            label="Enter your name to join the chat",
+            autofocus=True,
+            on_submit=join_chat_click,
+        )
+        self.page.dialog = ft.AlertDialog(
+            open=True,
+            modal=True,
+            title=ft.Text("Welcome!"),
+            content=ft.Column([join_user_name], width=300, height=70, tight=True),
+            actions=[ft.ElevatedButton(text="Join chat", on_click=join_chat_click)],
+            actions_alignment="end",
+        )
+
+        async def login_click(_):
+            self.page.dialog.open = True
+            await self.page.update_async()
+
+        async def settings_click(_):
+            self.page.views.append(
+                await settings_view(self.page, self.font_size_pubsub)
             )
-            new_message.value = ""
-            await new_message.focus_async()
-            await page.update_async()
+            await self.page.update_async()
 
-    font_size_pubsub = PubSub()
-
-    async def on_message(message: Message):
-        if message.message_type == "chat_message":
-            m = ChatMessage(message, page)
-            await m.subscribe_to_font_size_change(font_size_pubsub)
-        elif message.message_type == "login_message":
-            m = ft.Text(
-                message.elements[0], italic=True, color=ft.colors.WHITE, size=_FONT_SIZE
-            )
-        chat.controls.append(m)
-        await page.update_async()
-
-    await page.pubsub.subscribe_async(on_message)
-
-    # A dialog asking for a user display name
-    join_user_name = ft.TextField(
-        label="Enter your name to join the chat",
-        autofocus=True,
-        on_submit=join_chat_click,
-    )
-    page.dialog = ft.AlertDialog(
-        open=True,
-        modal=True,
-        title=ft.Text("Welcome!"),
-        content=ft.Column([join_user_name], width=300, height=70, tight=True),
-        actions=[ft.ElevatedButton(text="Join chat", on_click=join_chat_click)],
-        actions_alignment="end",
-    )
-
-    async def login_click(_):
-        page.dialog.open = True
-        await page.update_async()
-
-    async def settings_click(_):
-        page.views.append(await settings_view(page, font_size_pubsub))
-        await page.update_async()
-
-    # Chat messages
-    chat = ft.ListView(
-        expand=True,
-        spacing=10,
-        auto_scroll=True,
-    )
-
-    # A new message entry form
-    new_message = ft.TextField(
-        hint_text="Write a message...",
-        autofocus=True,
-        shift_enter=True,
-        min_lines=1,
-        max_lines=5,
-        filled=True,
-        expand=True,
-        on_submit=send_message_click,
-    )
-
-    # Add everything to the page
-    await page.add_async(
-        ft.Row(
-            [
-                ft.IconButton(icon=ft.icons.PERSON, on_click=login_click),
-                ft.IconButton(icon=ft.icons.SETTINGS, on_click=settings_click),
-            ]
-        ),
-        ft.Container(
-            content=chat,
-            border=ft.border.all(1, ft.colors.OUTLINE),
-            border_radius=5,
-            padding=10,
+        # Chat messages
+        chat = ft.ListView(
             expand=True,
-        ),
-        ft.Row(
-            [
-                new_message,
-                ft.IconButton(
-                    icon=ft.icons.SEND_ROUNDED,
-                    tooltip="Send message",
-                    on_click=send_message_click,
-                ),
-            ]
-        ),
-    )
+            spacing=10,
+            auto_scroll=True,
+        )
+
+        # A new message entry form
+        new_message = ft.TextField(
+            hint_text="Write a message...",
+            autofocus=True,
+            shift_enter=True,
+            min_lines=1,
+            max_lines=5,
+            filled=True,
+            expand=True,
+            on_submit=send_message_click,
+        )
+
+        # Add everything to the page
+        await self.page.add_async(
+            ft.Row(
+                [
+                    ft.IconButton(icon=ft.icons.PERSON, on_click=login_click),
+                    ft.IconButton(icon=ft.icons.SETTINGS, on_click=settings_click),
+                ]
+            ),
+            ft.Container(
+                content=chat,
+                border=ft.border.all(1, ft.colors.OUTLINE),
+                border_radius=5,
+                padding=10,
+                expand=True,
+            ),
+            ft.Row(
+                [
+                    new_message,
+                    ft.IconButton(
+                        icon=ft.icons.SEND_ROUNDED,
+                        tooltip="Send message",
+                        on_click=send_message_click,
+                    ),
+                ]
+            ),
+        )
+
+
+async def main(page: ft.Page):
+    hasharino = Hasharino(PubSub(), MemoryOnlyStorage(), page)
+    await hasharino.run()
 
 
 if __name__ == "__main__":
