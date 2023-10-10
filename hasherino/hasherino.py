@@ -5,12 +5,14 @@ TODO:
 - add 7tv emotes via chat
 """
 import asyncio
+import logging
 from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Awaitable
 
 import flet as ft
+import uvloop
 
 from hasherino import helix, user_auth
 from hasherino.twitch_websocket import ParsedMessage, TwitchWebsocket
@@ -481,6 +483,16 @@ class Hasherino:
 
 
 async def main(page: ft.Page):
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s | %(name)s | %(filename)s | %(levelname)s | %(funcName)s | %(lineno)d | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[logging.StreamHandler()],  # Outputs logs to the console
+    )
+
+    websockets_logger = logging.getLogger("websockets")
+    websockets_logger.setLevel(logging.INFO)
+
     storage = MemoryOnlyStorage(page)
     websocket = TwitchWebsocket()
     asyncio.gather(
@@ -493,5 +505,11 @@ async def main(page: ft.Page):
     await hasherino.run()
 
 
-if __name__ == "__main__":
+def run_hasherino():
+    # Script entrypoint
+    uvloop.install()
     ft.app(target=main)
+
+
+if __name__ == "__main__":
+    run_hasherino()

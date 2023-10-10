@@ -3,7 +3,7 @@ import logging
 
 import uvloop
 
-from gubchat.gubchatapp import GubChatApp
+from hasherino.hasherino import Hasherino
 
 
 def main():
@@ -18,7 +18,7 @@ def main():
     websockets_logger.setLevel(logging.INFO)
 
     uvloop.install()
-    app = GubChatApp()
+    app = Hasherino()
     asyncio.run(app.async_run())
 
 
