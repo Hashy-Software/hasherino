@@ -61,12 +61,14 @@ jobs:
     steps:
 
     - name: Download windows artifact
+      id: linux
       uses: actions/download-artifact@v3
       with:
         name: 'hasherino-windows'
         path: 'hasherino-windows.exe'
 
     - name: Download linux artifact
+      id: windows
       uses: actions/download-artifact@v3
       with:
         name: 'hasherino-linux'
@@ -78,6 +80,6 @@ jobs:
       with:
         token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
         files: |
-          /home/runner/work/hasherino/hasherino/hasherino-linux
-          /home/runner/work/hasherino/hasherino/hasherino-windows.exe
+          ${{steps.linux.outputs.download-path}}
+          ${{steps.windows.outputs.download-path}}
 
