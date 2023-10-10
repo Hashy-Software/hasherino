@@ -1,9 +1,7 @@
 
 name: Release for Linux
 
-on:
-  push:
-    branches: [ main ]
+on: push
 
 jobs:
   build:
@@ -28,7 +26,6 @@ jobs:
 
     - name: Release
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
       with:
         token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
         files: |
