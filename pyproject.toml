@@ -36,5 +36,7 @@ build-backend = "setuptools.build_meta"
 hasherino = "hasherino.hasherino:run_hasherino"
 
 [project.optional-dependencies]
-dev = []
+dev = [
+    "pyinstaller >= 6.0.0",
+]
 
