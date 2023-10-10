@@ -1,0 +1,33 @@
+
+name: Package Application with Pyinstaller
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Package Application for Linux
+      uses: JackMcKew/pyinstaller-action-linux@main
+      with:
+        path: hasherino
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: name-of-artifact
+        path: hasherino/dist/linux
+
+    - name: Package Application for Windows
+      uses: JackMcKew/pyinstaller-action-windows@main
+      with:
+        path: hasherino
+    - uses: actions/upload-artifact@v2
+      with:
+        name: name-of-artifact
+        path: hasherino/dist/windows
