@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from pathlib import Path
 from random import randint
 from typing import Callable
 from webbrowser import open as wb_open
@@ -22,8 +23,7 @@ class _WebServerContextManager:
     async def __aenter__(self):
         app = web.Application()
         app.add_routes(
-            [web.get("/", _home_callback),
-             web.get("/auth", _browser_redirect_callback)]
+            [web.get("/", _home_callback), web.get("/auth", _browser_redirect_callback)]
         )
         self._runner = web.AppRunner(app)
         await self._runner.setup()
@@ -73,7 +73,7 @@ async def _home_callback(_: web.Request) -> web.Response:
     """
     Sends URL parameters passed by twitch as fragments(readable client-side only) to the auth route
     """
-    with open("UserAuth.html", "r") as file:
+    with open(Path("assets") / Path("UserAuth.html"), "r") as file:
         return web.Response(text=file.read(), content_type="text/html")
 
 
