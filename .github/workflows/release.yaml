@@ -1,0 +1,72 @@
+
+name: Release
+
+on: push
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install requirements
+      run: >-
+        python3 -m pip install .[dev] --user
+
+    - name: Package application
+      run: >-
+        cd hasherino && flet pack hasherino.py --add-data UserAuth.html:UserAuth.html
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        path: hasherino/dist/hasherino
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install requirements
+      run: >-
+        python3 -m pip install .[dev] --user
+
+    - name: Package application
+      run: >-
+        cd hasherino && flet pack hasherino.py --add-data UserAuth.html:UserAuth.html
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        path: hasherino/dist/hasherino.exe
+
+  release:
+
+    runs-on: ubuntu-latest
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
+        files: |
+          hasherino
+          hasherino.exe
+
+
+
