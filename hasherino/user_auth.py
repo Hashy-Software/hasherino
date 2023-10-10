@@ -73,8 +73,44 @@ async def _home_callback(_: web.Request) -> web.Response:
     """
     Sends URL parameters passed by twitch as fragments(readable client-side only) to the auth route
     """
-    with open(Path("assets") / Path("UserAuth.html"), "r") as file:
-        return web.Response(text=file.read(), content_type="text/html")
+    html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gubchat Token</title>
+</head>
+<body>
+    <div id="result"></div>
+
+    <script>
+        function extractFragmentParams() {
+            const fragment = window.location.hash.substr(1);
+            const params = new URLSearchParams(fragment);
+            
+            const accessToken = params.get('access_token');
+            const state = params.get('state');
+            
+            if (accessToken && state) {
+                const apiUrl = `http://localhost:17563/auth?access_token=${accessToken}&state=${state}`;
+                fetch(apiUrl)
+                    .then(response => response.text())
+                    .then(result => {
+                        // Display the fetched result in the HTML
+                        const resultDiv = document.getElementById('result');
+                        resultDiv.textContent = result;
+                    })
+                    .catch(error => console.error('Error:', error));
+            } else {
+                console.log('Access token or state not found in fragment.');
+            }
+        }
+        
+        extractFragmentParams();
+    </script>
+</body>
+</html>
+    """
+    return web.Response(text=html, content_type="text/html")
 
 
 async def request_oauth_token(app_id: str, existing_token: str = "") -> str:
