@@ -1,9 +1,11 @@
 import enum
 import logging
+import ssl
 from dataclasses import dataclass
 from typing import Iterable
 
-from aiohttp import ClientSession
+import certifi
+from aiohttp import ClientSession, TCPConnector
 
 __all__ = ["get_users", "update_chat_color", "User", "NormalUserColor"]
 
@@ -68,7 +70,10 @@ async def get_users(
     )
     logging.debug(f"Generated helix get user parameters: {users}")
 
-    async with ClientSession() as session:
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    conn = TCPConnector(ssl=ssl_context)
+
+    async with ClientSession(connector=conn) as session:
         async with session.get(
             f"{_BASE_URL}users",
             headers={
@@ -97,7 +102,10 @@ async def get_user_chat_color(
     ids = "&".join(f"user_id={user_id}" for user_id in user_ids)
     logging.debug(f"Generated helix get user id parameters: {ids}")
 
-    async with ClientSession() as session:
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    conn = TCPConnector(ssl=ssl_context)
+
+    async with ClientSession(connector=conn) as session:
         async with session.get(
             f"{_BASE_URL}chat/color",
             headers={
@@ -118,7 +126,10 @@ async def get_user_chat_color(
 async def update_chat_color(
     app_id: str, oauth_token: str, user_id: str, color_code: str | NormalUserColor
 ) -> bool:
-    async with ClientSession() as session:
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    conn = TCPConnector(ssl=ssl_context)
+
+    async with ClientSession(connector=conn) as session:
         params = {
             "user_id": user_id,
             "color": str(color_code),
@@ -144,7 +155,10 @@ async def get_global_badges(
     """
     Raises Exception for invalid status code
     """
-    async with ClientSession() as session:
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    conn = TCPConnector(ssl=ssl_context)
+
+    async with ClientSession(connector=conn) as session:
         async with session.get(
             f"{_BASE_URL}chat/badges/global",
             headers={
