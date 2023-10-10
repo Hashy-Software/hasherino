@@ -32,7 +32,7 @@ build-backend = "setuptools.build_meta"
 "Homepage" = "https://github.com/Hashy-Software/hasherino"
 
 [project.scripts]
-hasherino = "hasherino.hasherino:run_hasherino"
+hasherino = "hasherino.__main__:run_hasherino"
 
 [project.optional-dependencies]
 dev = [
