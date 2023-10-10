@@ -20,7 +20,7 @@ jobs:
 
     - name: Install requirements
       run: >-
-        python3 -m pip install . --user
+        python3 -m pip install .[dev] --user
 
     - name: Package application for Linux
       run: >-
