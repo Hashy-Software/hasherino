@@ -78,6 +78,6 @@ jobs:
       with:
         token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
         files: |
-          hasherino-linux
-          hasherino-windows.exe
+          /home/runner/work/hasherino/hasherino/hasherino-linux
+          /home/runner/work/hasherino/hasherino/hasherino-windows.exe
 
