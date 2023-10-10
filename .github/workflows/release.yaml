@@ -79,6 +79,8 @@ jobs:
 
     - name: Run Changelog CI
       uses: saadmk11/changelog-ci@v1.1.2
+      with:
+        release_version: ${{ github.event.inputs.release_version }}
 
     - name: Release
       uses: softprops/action-gh-release@v1
