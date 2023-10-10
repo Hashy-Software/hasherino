@@ -61,6 +61,8 @@ jobs:
     needs: [build-linux, build-windows]
 
     steps:
+    - uses: actions/checkout@v3
+
     - name: Download windows artifact
       id: linux
       uses: actions/download-artifact@v3
@@ -74,15 +76,7 @@ jobs:
       with:
         name: 'hasherino-linux'
         path: 'artifacts'
-
-    - uses: actions/checkout@v3
-    - run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-
-    - name: Run Changelog CI
-      uses: saadmk11/changelog-ci@v1.1.2
-      with:
-        release_version: ${{ env.RELEASE_VERSION }}
-
+    
     - name: Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
