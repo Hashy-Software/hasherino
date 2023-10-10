@@ -412,7 +412,7 @@ class Hasherino:
             if message.command["command"] != "PRIVMSG":
                 return
 
-            author: str = message.source["nick"]
+            author: str = message.tags["display-name"]
             color = message.tags["color"]
             badges: list[Badge] = []
             for id, version in message.tags["badges"].items():
