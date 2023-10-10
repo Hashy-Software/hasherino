@@ -21,7 +21,7 @@ jobs:
 
     - name: Package application
       run: >-
-        cd hasherino && flet pack hasherino.py
+        cd hasherino && flet pack __main__.py
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
@@ -46,7 +46,7 @@ jobs:
 
     - name: Package application
       run: >-
-        cd hasherino && flet pack hasherino.py
+        cd hasherino && flet pack __main__.py
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
