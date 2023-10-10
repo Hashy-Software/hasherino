@@ -1,6 +1,6 @@
 [project]
-name = "hasharino"
-description = "hasharino is a twitch chat client built using flet"
+name = "hasherino"
+description = "hasherino is a twitch chat client built using flet"
 version = "0.1.4"
 authors = [
     { name = "Douglas", email = "hashy.software@gmail.com" }
@@ -30,10 +30,10 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project.urls]
-"Homepage" = "https://github.com/Hashy-Software/hasharino"
+"Homepage" = "https://github.com/Hashy-Software/hasherino"
 
 [project.scripts]
-hasharino = "hasharino.main:main"
+hasherino = "hasherino.main:main"
 
 [project.optional-dependencies]
 dev = []

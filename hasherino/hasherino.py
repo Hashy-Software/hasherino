@@ -1,6 +1,8 @@
 """
 TODO:
-
+- twitch emote support
+- 7tv emote support
+- add 7tv emotes via chat
 """
 import asyncio
 from abc import ABC
@@ -10,10 +12,8 @@ from typing import Any, Awaitable
 
 import flet as ft
 
-from hasharino import helix, user_auth
-from hasharino.twitch_websocket import ParsedMessage, TwitchWebsocket
-
-# from sqlalchemy.sql.compiler import selectable
+from hasherino import helix, user_auth
+from hasherino.twitch_websocket import ParsedMessage, TwitchWebsocket
 
 
 class AsyncKeyValueStorage(ABC):
@@ -359,7 +359,7 @@ class ChatContainer(ft.Container):
         await self.page.update_async()
 
 
-class Hasharino:
+class Hasherino:
     def __init__(
         self, font_size_pubsub: PubSub, storage: AsyncKeyValueStorage, page: ft.Page
     ) -> None:
@@ -458,7 +458,7 @@ class Hasharino:
 
     async def run(self):
         self.page.horizontal_alignment = "stretch"
-        self.page.title = "hasharino"
+        self.page.title = "hasherino"
 
         self.page.dialog = AccountDialog(self.storage)
 
@@ -489,8 +489,8 @@ async def main(page: ft.Page):
         storage.set("app_id", "hvmj7blkwy2gw3xf820n47i85g4sub"),
         storage.set("websocket", websocket),
     )
-    hasharino = Hasharino(PubSub(), storage, page)
-    await hasharino.run()
+    hasherino = Hasherino(PubSub(), storage, page)
+    await hasherino.run()
 
 
 if __name__ == "__main__":

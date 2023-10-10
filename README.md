@@ -1,2 +1,2 @@
-# hasharino
+# hasherino
 A twitch chat client.
