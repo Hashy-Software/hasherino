@@ -1,8 +1,9 @@
-import asyncio
 import logging
+import ssl
 from collections import defaultdict
 from typing import Callable
 
+import certifi
 import websockets
 
 __all__ = ["TwitchWebsocket", "ParsedMessage"]
@@ -225,9 +226,13 @@ class TwitchWebsocket:
 
     async def connect_websocket(self):
         if self._websocket is None:
+            ssl_context = ssl.create_default_context(cafile=certifi.where())
             # TODO: remove ping_timeout=None and properly detect timeout, and show on the UI when it disconnects/reconnects
             self._websocket = await websockets.connect(
-                "wss://irc-ws.chat.twitch.tv:443", ping_timeout=None, ping_interval=None
+                "wss://irc-ws.chat.twitch.tv:443",
+                ping_timeout=None,
+                ping_interval=None,
+                ssl=ssl_context,
             )
             await self._websocket.send(
                 "CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags"
