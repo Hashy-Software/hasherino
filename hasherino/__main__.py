@@ -307,6 +307,11 @@ class NewMessageRow(ft.Row):
                     source=EmoteSource.TWITCH,
                 ),
             }
+            ws: TwitchWebsocket = await self.storage.get("websocket")
+            await ws.send_message(
+                await self.storage.get("channel"), self.new_message.value
+            )
+
             await self.chat_message_pubsub.send(
                 Message(
                     User(
@@ -321,6 +326,7 @@ class NewMessageRow(ft.Row):
                     message_type="chat_message",
                 )
             )
+
             self.new_message.value = ""
             await self.new_message.focus_async()
             await self.page.update_async()
@@ -444,6 +450,7 @@ class Hasherino:
             self.page.dialog.open = False
             await self.page.update_async()
             await websocket.join_channel(channel.value)
+            await self.storage.set("channel", channel.value)
 
             while True:
                 task = asyncio.create_task(websocket.listen_message(message_received))
