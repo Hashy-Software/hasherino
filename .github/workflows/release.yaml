@@ -65,14 +65,14 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: 'hasherino-windows'
-        path: 'hasherino-windows.exe'
+        path: 'artifacts'
 
     - name: Download linux artifact
       id: windows
       uses: actions/download-artifact@v3
       with:
         name: 'hasherino-linux'
-        path: 'hasherino-linux'
+        path: 'artifacts'
 
     - name: Release
       uses: softprops/action-gh-release@v1
@@ -80,6 +80,4 @@ jobs:
       with:
         token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
         files: |
-          ${{steps.linux.outputs.download-path}}
-          ${{steps.windows.outputs.download-path}}
-
+          artifacts/*
