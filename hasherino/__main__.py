@@ -137,7 +137,7 @@ class ChatMessage(ft.Row):
         self.width = page.width
         self.page = page
         self.font_size = font_size
-        self.spacing = 5
+        self.spacing = 2
         self.vertical_alignment = ft.CrossAxisAlignment.CENTER
 
         self.add_control_elements(message)
@@ -338,7 +338,7 @@ class ChatContainer(ft.Container):
         self.font_size_pubsub = font_size_pubsub
         self.chat = ft.ListView(
             expand=True,
-            spacing=10,
+            spacing=0,
             auto_scroll=True,
         )
         super().__init__(
