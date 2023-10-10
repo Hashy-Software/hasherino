@@ -11,12 +11,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
-    - name: Package Application for Linux
-      uses: JackMcKew/pyinstaller-action-linux@main
-      with:
-        path: hasherino
+    - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+    - name: Install requirements
+        run: >-
+          python3 -m pip install . --user
+
+    - name: Package application for Linux
+        run: >-
+          cd hasherino && flet pack hasherino.py --add-data UserAuth.html:UserAuth.html
 
     - uses: actions/upload-artifact@v2
       with:
