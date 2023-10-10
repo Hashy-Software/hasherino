@@ -135,3 +135,27 @@ async def update_chat_color(
                 f"Helix tried changing user color, response code: {response.status}. Params: {params}"
             )
             return response.status == 204
+
+
+async def get_global_badges(
+    app_id: str,
+    oauth_token: str,
+) -> dict:
+    """
+    Raises Exception for invalid status code
+    """
+    async with ClientSession() as session:
+        async with session.get(
+            f"{_BASE_URL}chat/badges/global",
+            headers={
+                "Authorization": f"Bearer {oauth_token}",
+                "Client-Id": app_id,
+            },
+        ) as response:
+            json_result = await response.json()
+            logging.debug(f"Helix get global badge response: {json_result}")
+
+            if response.status != 200:
+                raise Exception("Unable to get global badges")
+
+            return json_result["data"]

@@ -2,6 +2,7 @@
 TODO:
 
 """
+import asyncio
 from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
@@ -10,6 +11,7 @@ from typing import Any, Awaitable
 import flet as ft
 
 from hasharino import helix, user_auth
+from hasharino.twitch_websocket import ParsedMessage, TwitchWebsocket
 
 # from sqlalchemy.sql.compiler import selectable
 
@@ -42,11 +44,9 @@ class MemoryOnlyStorage(AsyncKeyValueStorage):
 
 @dataclass
 class Badge:
-    name: str
     id: str
-
-    def get_url(self) -> str:
-        return f"https://static-cdn.jtvnw.net/badges/v1/{self.id}/2"
+    name: str
+    url: str
 
 
 @dataclass
@@ -143,7 +143,7 @@ class ChatMessage(ft.Row):
 
     def add_control_elements(self, message):
         self.controls = [
-            ChatBadge(badge.get_url(), self.font_size) for badge in message.user.badges
+            ChatBadge(badge.url, self.font_size) for badge in message.user.badges
         ]
 
         self.controls.append(
@@ -310,12 +310,7 @@ class NewMessageRow(ft.Row):
                 Message(
                     User(
                         name=await self.storage.get("user_name"),
-                        badges=[
-                            Badge(
-                                "Prime gaming",
-                                "bbbe0db0-a598-423e-86d0-f9fb98ca1933",
-                            )
-                        ],
+                        badges=[],
                         chat_color="#ff0000",
                     ),
                     elements=[
@@ -381,6 +376,11 @@ class Hasharino:
             await self.storage.set("token", token)
             await self.storage.set("user_name", users[0].display_name)
             await self.storage.set("user", users[0])
+            socket: TwitchWebsocket = await self.storage.get("websocket")
+            await self.storage.set(
+                "ttv_badges", await helix.get_global_badges(app_id, token)
+            )
+            await socket.authenticate(token, users[0].login)
         else:
             self.page.dialog = ft.AlertDialog(
                 content=ft.Text("Failed to authenticate.")
@@ -389,10 +389,71 @@ class Hasharino:
 
         await self.page.update_async()
 
+    async def get_badge(self, set_id: str, version: str) -> dict | None:
+        try:
+            emotes = await self.storage.get("ttv_badges")
+            id_match = next((s for s in emotes if s["set_id"] == set_id))
+            version_match = next(
+                (s for s in id_match["versions"] if s["id"] == version)
+            )
+            return version_match
+        except:
+            return None
+
     async def settings_click(self, _):
         sv = SettingsView(self.font_size_pubsub, self.storage)
         await sv.init()
         self.page.views.append(sv)
+        await self.page.update_async()
+
+    async def select_chat_click(self, _):
+        async def message_received(message: ParsedMessage):
+            if message.command["command"] != "PRIVMSG":
+                return
+
+            author: str = message.source["nick"]
+            color = message.tags["color"]
+            badges: list[Badge] = []
+            for id, version in message.tags["badges"].items():
+                badge = await self.get_badge(id, version)
+                if badge:
+                    badges.append(Badge(id, badge["title"], badge["image_url_4x"]))
+            message_text: str = message.parameters
+            emote_map = {}
+
+            await self.chat_message_pubsub.send(
+                Message(
+                    User(
+                        name=author,
+                        badges=badges,
+                        chat_color=f"#{color}",
+                    ),
+                    elements=[
+                        emote_map[element] if element in emote_map else element
+                        for element in message_text.split(" ")
+                    ],
+                    message_type="chat_message",
+                )
+            )
+
+        channel = ft.TextField(label="Channel")
+
+        async def join_chat_click(_):
+            websocket: TwitchWebsocket = await self.storage.get("websocket")
+            self.page.dialog.open = False
+            await self.page.update_async()
+            await websocket.join_channel(channel.value)
+
+            while True:
+                task = asyncio.create_task(websocket.listen_message(message_received))
+                while not task.done():
+                    await asyncio.sleep(0.3)
+
+        self.page.dialog = ft.AlertDialog(
+            content=channel,
+            actions=[ft.ElevatedButton(text="Join", on_click=join_chat_click)],
+        )
+        self.page.dialog.open = True
         await self.page.update_async()
 
     async def run(self):
@@ -402,26 +463,32 @@ class Hasharino:
         self.page.dialog = AccountDialog(self.storage)
 
         chat_container = ChatContainer(self.storage, self.font_size_pubsub)
-        chat_message_pubsub = PubSub()
-        await chat_message_pubsub.subscribe(chat_container.on_message)
+        self.chat_message_pubsub = PubSub()
+        await self.chat_message_pubsub.subscribe(chat_container.on_message)
 
         # Add everything to the page
         await self.page.add_async(
             ft.Row(
                 [
                     ft.IconButton(icon=ft.icons.LOGIN, on_click=self.login_click),
+                    ft.IconButton(icon=ft.icons.CHAT, on_click=self.select_chat_click),
                     ft.IconButton(icon=ft.icons.SETTINGS, on_click=self.settings_click),
                 ]
             ),
             chat_container,
-            NewMessageRow(self.storage, chat_message_pubsub),
+            NewMessageRow(self.storage, self.chat_message_pubsub),
         )
 
 
 async def main(page: ft.Page):
     storage = MemoryOnlyStorage(page)
-    await storage.set("chat_font_size", 18)
-    await storage.set("app_id", "hvmj7blkwy2gw3xf820n47i85g4sub")
+    websocket = TwitchWebsocket()
+    asyncio.gather(
+        websocket.connect_websocket(),
+        storage.set("chat_font_size", 18),
+        storage.set("app_id", "hvmj7blkwy2gw3xf820n47i85g4sub"),
+        storage.set("websocket", websocket),
+    )
     hasharino = Hasharino(PubSub(), storage, page)
     await hasharino.run()
 

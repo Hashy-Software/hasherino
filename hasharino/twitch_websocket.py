@@ -4,7 +4,6 @@ from collections import defaultdict
 from typing import Callable
 
 import websockets
-from kivy.clock import Clock
 
 __all__ = ["TwitchWebsocket", "ParsedMessage"]
 
@@ -257,8 +256,7 @@ class TwitchWebsocket:
         await self._websocket.send(f"JOIN #{channel}")
 
     async def send_message(self, channel: str, message: str):
-        logging.debug(
-            f"Sending message on channel {channel} message: {message}")
+        logging.debug(f"Sending message on channel {channel} message: {message}")
 
         if self._websocket is None:
             raise Exception("Websocket not connected")
@@ -286,7 +284,6 @@ class TwitchWebsocket:
                         "USERSTATE",  # USERSTATE messages are used to get color and user-id
                         "GLOBALUSERSTATE",
                     ):
-                        Clock.schedule_once(
-                            lambda _, m=parsed_message: callback(m))
+                        await callback(parsed_message)
                 except AttributeError:
                     pass
