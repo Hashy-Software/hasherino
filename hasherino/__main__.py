@@ -1,9 +1,3 @@
-"""
-TODO:
-- twitch emote support
-- 7tv emote support
-- add 7tv emotes via chat
-"""
 import asyncio
 import logging
 from abc import ABC
