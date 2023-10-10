@@ -46,7 +46,7 @@ jobs:
 
     - name: Package application
       run: >-
-        cd hasherino && flet pack hasherino.py --add-data assets;assets
+        cd hasherino && flet pack hasherino.py --add-data "assets;assets"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
