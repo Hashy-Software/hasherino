@@ -77,7 +77,7 @@ async def _home_callback(_: web.Request) -> web.Response:
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Gubchat Token</title>
+    <title>Hasherino Token</title>
 </head>
 <body>
     <div id="result"></div>
