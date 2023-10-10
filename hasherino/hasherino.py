@@ -12,7 +12,6 @@ from enum import Enum
 from typing import Any, Awaitable
 
 import flet as ft
-import uvloop
 
 from hasherino import helix, user_auth
 from hasherino.twitch_websocket import ParsedMessage, TwitchWebsocket
@@ -507,7 +506,6 @@ async def main(page: ft.Page):
 
 def run_hasherino():
     # Script entrypoint
-    uvloop.install()
     ft.app(target=main)
 
 

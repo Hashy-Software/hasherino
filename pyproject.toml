@@ -18,7 +18,6 @@ dependencies = [
     "aiohttp >= 3.8.5",
     "websockets >= 11.0.3",
     "keyring >= 24.2.0",
-    "uvloop >= 0.17.0",
     "flet >= 0.10.3",
 ]
 
