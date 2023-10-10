@@ -77,11 +77,14 @@ jobs:
         name: 'hasherino-linux'
         path: 'artifacts'
 
+    - name: Run Changelog CI
+      uses: saadmk11/changelog-ci@v1.1.2
+
     - name: Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
         token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
-        body_path: ${{ github.workspace }}/../CHANGELOG.md
+        body_path: CHANGELOG.md
         files: |
           artifacts/*
