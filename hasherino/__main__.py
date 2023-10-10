@@ -310,8 +310,8 @@ class NewMessageRow(ft.Row):
                 Message(
                     User(
                         name=await self.storage.get("user_name"),
-                        badges=[],
-                        chat_color="#ff0000",
+                        badges=await self.storage.get("user_badges"),
+                        chat_color=await self.storage.get("user_color"),
                     ),
                     elements=[
                         emote_map[element] if element in emote_map else element
@@ -407,18 +407,34 @@ class Hasherino:
         self.page.views.append(sv)
         await self.page.update_async()
 
+    async def badges_from_msg(self, message: ParsedMessage) -> list[Badge]:
+        badges = []
+
+        for id, version in message.tags["badges"].items():
+            badge = await self.get_badge(id, version)
+            if badge:
+                badges.append(Badge(id, badge["title"], badge["image_url_4x"]))
+
+        return badges
+
     async def select_chat_click(self, _):
         async def message_received(message: ParsedMessage):
+            username = await self.storage.get("user_name")
+            if (
+                message.command["command"] in ("USERSTATE", "GLOBALUSERSTATE")
+                and message.tags["display-name"].lower() == username
+            ):
+                await self.storage.set(
+                    "user_badges", await self.badges_from_msg(message)
+                )
+                await self.storage.set("user_color", f"#{message.tags['color']}")
+                return
+
             if message.command["command"] != "PRIVMSG":
                 return
 
             author: str = message.tags["display-name"]
             color = message.tags["color"]
-            badges: list[Badge] = []
-            for id, version in message.tags["badges"].items():
-                badge = await self.get_badge(id, version)
-                if badge:
-                    badges.append(Badge(id, badge["title"], badge["image_url_4x"]))
             message_text: str = message.parameters
             emote_map = {}
 
@@ -426,7 +442,7 @@ class Hasherino:
                 Message(
                     User(
                         name=author,
-                        badges=badges,
+                        badges=await self.badges_from_msg(message),
                         chat_color=f"#{color}",
                     ),
                     elements=[
