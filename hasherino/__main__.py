@@ -138,8 +138,30 @@ class SettingsView(ft.View):
             "/settings",
             [
                 ft.IconButton(icon=ft.icons.ARROW_BACK, on_click=self._back_click),
-                ft.Tabs(tabs=[await self._get_appearance_tab()]),
+                ft.Tabs(
+                    tabs=[
+                        await self._get_general_tab(),
+                        await self._get_appearance_tab(),
+                    ]
+                ),
             ],
+        )
+
+    async def _get_general_tab(self) -> ft.Tab:
+        return ft.Tab(
+            text="General",
+            icon=ft.icons.SETTINGS,
+            content=ft.Column(
+                controls=[
+                    ft.Text(),
+                    ft.TextField(
+                        value=await self.storage.get("max_messages_per_chat"),
+                        label="Max. messages per chat",
+                        width=500,
+                        on_change=self._max_messages_change,
+                    ),
+                ],
+            ),
         )
 
     async def _get_appearance_tab(self) -> ft.Tab:
@@ -148,6 +170,7 @@ class SettingsView(ft.View):
             icon=ft.icons.BRUSH,
             content=ft.Column(
                 controls=[
+                    ft.Text(),
                     ft.Text(
                         "Chat font size:",
                         size=16,
@@ -164,6 +187,23 @@ class SettingsView(ft.View):
                 ],
             ),
         )
+
+    async def _max_messages_change(self, e):
+        try:
+            value = int(e.control.value)
+
+            if value < 10 or value > 500:
+                raise ValueError
+
+            await self.storage.set("max_messages_per_chat", value)
+            e.control.error_text = ""
+            logging.debug(f"Updated max_messages_per_chat to {value}")
+
+        except ValueError:
+            e.control.error_text = "Value must be an integer between 10 and 500!"
+
+        finally:
+            await self.page.update_async()
 
     async def _back_click(self, _):
         self.page.views.pop()
@@ -324,10 +364,18 @@ class ChatContainer(ft.Container):
 
         self.chat.controls.append(m)
 
+        n_messages_to_remove = len(self.chat.controls) - await self.storage.get(
+            "max_messages_per_chat"
+        )
+        if n_messages_to_remove > 0:
+            del self.chat.controls[:n_messages_to_remove]
+
         if self.is_chat_scrolled_down:
             await self.chat.scroll_to_async(offset=-1, duration=10)
         else:
             await self.page.update_async()
+
+        logging.debug(f"Chat has {len(self.chat.controls)} lines in it")
 
 
 class Hasherino:
@@ -472,6 +520,7 @@ async def main(page: ft.Page):
     asyncio.gather(
         websocket.connect_websocket(),
         storage.set("chat_font_size", 18),
+        storage.set("max_messages_per_chat", 100),
         storage.set("app_id", "hvmj7blkwy2gw3xf820n47i85g4sub"),
         storage.set("websocket", websocket),
     )
