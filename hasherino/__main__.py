@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from abc import ABC
+from math import isclose
 from typing import Any, Awaitable
 
 import flet as ft
@@ -287,10 +288,14 @@ class ChatContainer(ft.Container):
     def __init__(self, storage: AsyncKeyValueStorage, font_size_pubsub: PubSub):
         self.storage = storage
         self.font_size_pubsub = font_size_pubsub
-        self.chat = ft.ListView(
+        self.is_chat_scrolled_down = False
+        self.chat = ft.Column(
             expand=True,
             spacing=0,
-            auto_scroll=True,
+            run_spacing=0,
+            scroll=ft.ScrollMode.ALWAYS,
+            auto_scroll=False,
+            on_scroll=self.on_scroll,
         )
         super().__init__(
             content=self.chat,
@@ -298,6 +303,11 @@ class ChatContainer(ft.Container):
             border_radius=5,
             padding=10,
             expand=True,
+        )
+
+    async def on_scroll(self, event: ft.OnScrollEvent):
+        self.is_chat_scrolled_down = isclose(
+            event.pixels, event.max_scroll_extent, rel_tol=0.01
         )
 
     async def on_message(self, message: Message):
@@ -313,8 +323,13 @@ class ChatContainer(ft.Container):
                 color=ft.colors.WHITE,
                 size=await self.storage.get("chat_font_size"),
             )
+
         self.chat.controls.append(m)
-        await self.page.update_async()
+
+        if self.is_chat_scrolled_down:
+            await self.chat.scroll_to_async(offset=-1, duration=10)
+        else:
+            await self.page.update_async()
 
 
 class Hasherino:
