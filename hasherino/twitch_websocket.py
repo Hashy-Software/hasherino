@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import ssl
 from collections import defaultdict
@@ -276,6 +277,8 @@ class TwitchWebsocket:
         raw_msg = await self._websocket.recv()
 
         # Multiple messages can be received at once
+        callbacks = []
+
         for message in raw_msg.split("\r\n"):
             parsed_message = ParsedMessage(message)
             if parsed_message:
@@ -289,6 +292,8 @@ class TwitchWebsocket:
                         "USERSTATE",  # USERSTATE messages are used to get color and user-id
                         "GLOBALUSERSTATE",
                     ):
-                        await callback(parsed_message)
+                        callbacks.append(callback(parsed_message))
                 except AttributeError:
                     pass
+
+        asyncio.gather(*callbacks)
