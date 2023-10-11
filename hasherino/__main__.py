@@ -443,7 +443,7 @@ class Hasherino:
                     User(
                         name=author,
                         badges=await self.badges_from_msg(message),
-                        chat_color=f"#{color}",
+                        chat_color=color if color[0] == "#" else f"#{color}",
                     ),
                     elements=[
                         emote_map[element] if element in emote_map else element
