@@ -8,7 +8,7 @@ from typing import Callable
 import certifi
 import websockets
 
-from hasherino.dataclasses import Badge
+from hasherino.hasherino_dataclasses import Badge
 
 __all__ = ["TwitchWebsocket", "ParsedMessage"]
 

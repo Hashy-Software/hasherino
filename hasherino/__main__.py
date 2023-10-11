@@ -7,7 +7,7 @@ from typing import Any, Awaitable
 import flet as ft
 
 from hasherino import helix, user_auth
-from hasherino.dataclasses import Emote, EmoteSource, Message, User
+from hasherino.hasherino_dataclasses import Emote, EmoteSource, Message, User
 from hasherino.twitch_websocket import Command, ParsedMessage, TwitchWebsocket
 
 
