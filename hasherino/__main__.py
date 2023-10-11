@@ -467,6 +467,8 @@ class Hasherino:
                 while not task.done():
                     await asyncio.sleep(0.3)
 
+        channel.on_submit = join_chat_click
+
         self.page.dialog = ft.AlertDialog(
             content=channel,
             actions=[ft.ElevatedButton(text="Join", on_click=join_chat_click)],
