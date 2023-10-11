@@ -63,7 +63,6 @@ class ChatText(ft.Text, FontSizeSubscriber):
 
     async def on_font_size_changed(self, new_font_size: int):
         self.size = new_font_size
-        await self.page.update_async()
 
 
 class ChatBadge(ft.Image, FontSizeSubscriber):
@@ -72,13 +71,11 @@ class ChatBadge(ft.Image, FontSizeSubscriber):
 
     async def on_font_size_changed(self, new_font_size: int):
         self.height = new_font_size
-        await self.page.update_async()
 
 
 class ChatEmote(ft.Image, FontSizeSubscriber):
     async def on_font_size_changed(self, new_font_size: int):
         self.height = new_font_size * 2
-        await self.page.update_async()
 
 
 class ChatMessage(ft.Row):
@@ -175,6 +172,7 @@ class SettingsView(ft.View):
     async def _font_size_change(self, e):
         await self.storage.set("chat_font_size", e.control.value)
         await self.font_size_pubsub.send(e.control.value)
+        await self.page.update_async()
 
 
 class AccountDialog(ft.AlertDialog):
