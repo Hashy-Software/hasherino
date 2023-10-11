@@ -1,14 +1,13 @@
 import asyncio
 import logging
 from abc import ABC
-from dataclasses import dataclass
-from enum import Enum
 from typing import Any, Awaitable
 
 import flet as ft
 
 from hasherino import helix, user_auth
-from hasherino.twitch_websocket import ParsedMessage, TwitchWebsocket
+from hasherino.dataclasses import Emote, EmoteSource, Message, User
+from hasherino.twitch_websocket import Command, ParsedMessage, TwitchWebsocket
 
 
 class AsyncKeyValueStorage(ABC):
@@ -35,48 +34,6 @@ class MemoryOnlyStorage(AsyncKeyValueStorage):
 
     async def remove(self, key):
         self.page.session.remove(key)
-
-
-@dataclass
-class Badge:
-    id: str
-    name: str
-    url: str
-
-
-@dataclass
-class User:
-    name: str
-    badges: list[Badge] | None = None
-    chat_color: str | None = None
-
-
-class EmoteSource(Enum):
-    TWITCH = 0
-    SEVENTV = 1
-
-
-@dataclass
-class Emote:
-    name: str
-    id: str
-    source: EmoteSource
-
-    def get_url(self) -> str:
-        match self.source:
-            case EmoteSource.SEVENTV:
-                return f"https://cdn.7tv.app/emote/{self.id}/4x.webp"
-            case EmoteSource.TWITCH:
-                return f"https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_{self.id}/default/dark/3.0"
-            case _:
-                raise TypeError
-
-
-@dataclass
-class Message:
-    user: User
-    elements: list[str | Emote]
-    message_type: str
 
 
 class PubSub:
@@ -390,69 +347,52 @@ class Hasherino:
 
         await self.page.update_async()
 
-    async def get_badge(self, set_id: str, version: str) -> dict | None:
-        try:
-            emotes = await self.storage.get("ttv_badges")
-            id_match = next((s for s in emotes if s["set_id"] == set_id))
-            version_match = next(
-                (s for s in id_match["versions"] if s["id"] == version)
-            )
-            return version_match
-        except:
-            return None
-
     async def settings_click(self, _):
         sv = SettingsView(self.font_size_pubsub, self.storage)
         await sv.init()
         self.page.views.append(sv)
         await self.page.update_async()
 
-    async def badges_from_msg(self, message: ParsedMessage) -> list[Badge]:
-        badges = []
+    async def message_received(self, message: ParsedMessage):
+        match message.get_command():
+            case Command.USERSTATE | Command.GLOBALUSERSTATE:
+                if (
+                    message.get_author_displayname().lower()
+                    == (await self.storage.get("user_name")).lower()
+                ):
+                    await self.storage.set(
+                        "user_badges",
+                        message.get_badges(await self.storage.get("ttv_badges")),
+                    )
+                    await self.storage.set(
+                        "user_color", message.get_author_chat_color()
+                    )
 
-        for id, version in message.tags["badges"].items():
-            badge = await self.get_badge(id, version)
-            if badge:
-                badges.append(Badge(id, badge["title"], badge["image_url_4x"]))
+            case Command.PRIVMSG:
+                author: str = message.get_author_displayname()
 
-        return badges
+                emote_map = {}
+
+                await self.chat_message_pubsub.send(
+                    Message(
+                        User(
+                            name=author,
+                            badges=message.get_badges(
+                                await self.storage.get("ttv_badges")
+                            ),
+                            chat_color=message.get_author_chat_color(),
+                        ),
+                        elements=[
+                            emote_map[element] if element in emote_map else element
+                            for element in message.get_message_text().split(" ")
+                        ],
+                        message_type="chat_message",
+                    )
+                )
+            case _:
+                pass
 
     async def select_chat_click(self, _):
-        async def message_received(message: ParsedMessage):
-            username = await self.storage.get("user_name")
-            if (
-                message.command["command"] in ("USERSTATE", "GLOBALUSERSTATE")
-                and message.tags["display-name"].lower() == username
-            ):
-                await self.storage.set(
-                    "user_badges", await self.badges_from_msg(message)
-                )
-                await self.storage.set("user_color", f"#{message.tags['color']}")
-                return
-
-            if message.command["command"] != "PRIVMSG":
-                return
-
-            author: str = message.tags["display-name"]
-            color = message.tags["color"]
-            message_text: str = message.parameters
-            emote_map = {}
-
-            await self.chat_message_pubsub.send(
-                Message(
-                    User(
-                        name=author,
-                        badges=await self.badges_from_msg(message),
-                        chat_color=color if color[0] == "#" else f"#{color}",
-                    ),
-                    elements=[
-                        emote_map[element] if element in emote_map else element
-                        for element in message_text.split(" ")
-                    ],
-                    message_type="chat_message",
-                )
-            )
-
         channel = ft.TextField(label="Channel")
 
         async def join_chat_click(_):
@@ -463,7 +403,10 @@ class Hasherino:
             await self.storage.set("channel", channel.value)
 
             while True:
-                task = asyncio.create_task(websocket.listen_message(message_received))
+                task = asyncio.create_task(
+                    websocket.listen_message(self.message_received)
+                )
+
                 while not task.done():
                     await asyncio.sleep(0.3)
 

@@ -2,22 +2,33 @@ import asyncio
 import logging
 import ssl
 from collections import defaultdict
+from enum import Enum, auto
 from typing import Callable
 
 import certifi
 import websockets
 
+from hasherino.dataclasses import Badge
+
 __all__ = ["TwitchWebsocket", "ParsedMessage"]
+
+
+class Command(Enum):
+    PRIVMSG = auto()
+    USERSTATE = auto()
+    GLOBALUSERSTATE = auto()
+    OTHER = auto()
 
 
 class ParsedMessage:
     def __init__(self, message: str):
+        self.source = self.tags = self.parameters = self.command = None
+
         raw_components = self._get_raw_components(message)
         if not raw_components:
             return None
 
         self.command = self._parse_command(raw_components["raw_command"])
-        self.source = self.tags = self.parameters = None
 
         if self.command is None:
             return None
@@ -27,6 +38,76 @@ class ParsedMessage:
 
             self.source = self._parse_source(raw_components["raw_source"])
             self.parameters = raw_components["raw_parameters"]
+
+    def get_badges(self, ttv_badges: dict) -> list[Badge]:
+        def get_badge(set_id: str, version: str) -> dict | None:
+            try:
+                id_match = next((s for s in ttv_badges if s["set_id"] == set_id))
+                version_match = next(
+                    (s for s in id_match["versions"] if s["id"] == version)
+                )
+                return version_match
+            except:
+                return None
+
+        badges = []
+
+        if not self.tags or not self.tags.get("badges"):
+            return badges
+
+        try:
+            for id, version in self.tags["badges"].items():
+                badge = get_badge(id, version)
+                if badge:
+                    badges.append(Badge(id, badge["title"], badge["image_url_4x"]))
+        except Exception as e:
+            logging.exception(f"Error {e}. Failed to get badges from message: {self}")
+            return []
+
+        return badges
+
+    def get_author_chat_color(self) -> str:
+        result = "ffffff"
+
+        if self.tags and self.tags["color"]:
+            result = (
+                self.tags["color"][1:]
+                if self.tags["color"][0] == "#"
+                else self.tags["color"]
+            )
+
+        assert len(result) <= 7, f"Returned invalid color: {result}"
+        assert result[0] != "#"
+
+        return f"#{result}"
+
+    def get_author_displayname(self) -> str:
+        if not self.tags or not self.tags.get("display-name"):
+            logging.warning(f"Failed to get author display-name fo message: {self}")
+            return ""
+
+        return self.tags.get("display-name")
+
+    def get_command(self) -> Command:
+        result = Command.OTHER
+
+        if not self.command or not self.command.get("command"):
+            return result
+
+        match self.command["command"]:
+            case "PRIVMSG":
+                result = Command.PRIVMSG
+            case "USERSTATE":
+                result = Command.USERSTATE
+            case "GLOBALUSERSTATE":
+                result = Command.GLOBALUSERSTATE
+            case _:
+                result = Command.OTHER
+
+        return result
+
+    def get_message_text(self) -> str:
+        return "" if not self.parameters else self.parameters
 
     def __str__(self) -> str:
         return str(self.__dict__)
