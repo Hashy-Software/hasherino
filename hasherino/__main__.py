@@ -107,7 +107,8 @@ class ChatMessage(ft.Row):
 
         for element in message.elements:
             if type(element) == str:
-                result = ChatText(element, ft.colors.WHITE, self.font_size)
+                color = message.user.chat_color if message.me else ft.colors.WHITE
+                result = ChatText(element, color, self.font_size)
             elif type(element) == Emote:
                 result = ChatEmote(
                     src=element.get_url(),
@@ -363,6 +364,7 @@ class NewMessageRow(ft.Row):
                     for element in self.new_message.value.split(" ")
                 ],
                 message_type="chat_message",
+                me=False,
             )
         )
 
@@ -522,6 +524,7 @@ class Hasherino:
                             for element in message.get_message_text().split(" ")
                         ],
                         message_type="chat_message",
+                        me=True,
                     )
                 )
             case _:

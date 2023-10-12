@@ -42,3 +42,4 @@ class Message:
     user: User
     elements: list[str | Emote]
     message_type: str
+    me: bool

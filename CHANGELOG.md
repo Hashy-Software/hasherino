@@ -4,4 +4,4 @@ Changes:
 * Display error message when trying to send message without logging in(closes #16)
 * Display error message when trying to send message without selecting a chat channel(closes #16)
 * Show current selected channel on new message hint text
-
+* Render messages with /me

@@ -106,9 +106,24 @@ class ParsedMessage:
 
         return result
 
+    def is_me(self) -> bool:
+        """
+        Messages sent with /me, coloring the whole line with the user's chat color
+        """
+        return (
+            self.get_command() is Command.PRIVMSG
+            and self.parameters[:7] == "\x01ACTION"
+        )
+
     def get_message_text(self) -> str:
         # Remove \r\n from end of text
-        return "" if len(self.parameters) <= 2 else self.parameters[:-2]
+        result = "" if len(self.parameters) <= 2 else self.parameters[:-2]
+
+        if self.is_me():
+            # parameters: '\x01ACTION asd\x01\r\n'
+            result = result[8:-1]
+
+        return result
 
     def __str__(self) -> str:
         return str(self.__dict__)
