@@ -1,12 +1,12 @@
-import asyncio
 import logging
 import ssl
 from collections import defaultdict
 from enum import Enum, auto
-from typing import Callable
+from typing import Awaitable
 
 import certifi
 import websockets
+from websockets.exceptions import ConnectionClosedError
 
 from hasherino.hasherino_dataclasses import Badge
 
@@ -107,7 +107,8 @@ class ParsedMessage:
         return result
 
     def get_message_text(self) -> str:
-        return "" if not self.parameters else self.parameters
+        # Remove \r\n from end of text
+        return "" if len(self.parameters) <= 2 else self.parameters[:-2]
 
     def __str__(self) -> str:
         return str(self.__dict__)
@@ -306,26 +307,10 @@ class TwitchWebsocket:
     def __init__(self) -> None:
         self._websocket = None
 
-    async def connect_websocket(self):
-        if self._websocket is None:
-            ssl_context = ssl.create_default_context(cafile=certifi.where())
-            # TODO: remove ping_timeout=None and properly detect timeout, and show on the UI when it disconnects/reconnects
-            self._websocket = await websockets.connect(
-                "wss://irc-ws.chat.twitch.tv:443",
-                ping_timeout=None,
-                ping_interval=None,
-                ssl=ssl_context,
-            )
-            await self._websocket.send(
-                "CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags"
-            )
+    async def is_connected(self) -> bool:
+        return self._websocket is not None
 
-    async def disconnect_websocket(self):
-        if self._websocket:
-            await self._websocket.close()
-            self._websocket = None
-
-    async def authenticate(self, token: str, user: str):
+    async def _authenticate(self, token: str, user: str):
         """
         Returns parsed authentication response
         """
@@ -351,30 +336,37 @@ class TwitchWebsocket:
         logging.debug("Acquired lock, sending message")
         await self._websocket.send(f"PRIVMSG #{channel} :{message}")
 
-    async def listen_message(self, callback: Callable):
-        if self._websocket is None:
-            raise Exception("Websocket not connected")
+    async def listen_message(
+        self,
+        message_callback: Awaitable,
+        reconnect_callback: Awaitable[bool],
+        token: str,
+        username: str,
+    ):
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        async for websocket in websockets.connect(
+            "wss://irc-ws.chat.twitch.tv:443",
+            ping_interval=3,
+            ping_timeout=2,
+            ssl=ssl_context,
+        ):
+            try:
+                self._websocket = websocket
 
-        raw_msg = await self._websocket.recv()
-
-        # Multiple messages can be received at once
-        callbacks = []
-
-        for message in raw_msg.split("\r\n"):
-            parsed_message = ParsedMessage(message)
-            if parsed_message:
-                logging.debug(
-                    f"Received websocket message: {message}. Parsed as: {parsed_message}"
+                await websocket.send(
+                    "CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags"
                 )
+                await self._authenticate(token, username)
+                await reconnect_callback(False)
 
-                try:
-                    if parsed_message.command.get("command", None) in (
-                        "PRIVMSG",
-                        "USERSTATE",  # USERSTATE messages are used to get color and user-id
-                        "GLOBALUSERSTATE",
-                    ):
-                        callbacks.append(callback(parsed_message))
-                except AttributeError:
-                    pass
+                async for message in websocket:
+                    parsed_message: ParsedMessage = ParsedMessage(message)
+                    await message_callback(parsed_message)
 
-        asyncio.gather(*callbacks)
+            except ConnectionClosedError:
+                logging.warning("Websocket connection closed, reconnecting")
+                self._websocket = None
+                await reconnect_callback(True)
+
+            except Exception as e:
+                logging.exception(f"Websocket connection failed: {e}")

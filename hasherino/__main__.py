@@ -2,7 +2,7 @@ import asyncio
 import logging
 from abc import ABC
 from math import isclose
-from typing import Any, Awaitable
+from typing import Any, Awaitable, Coroutine
 
 import flet as ft
 
@@ -246,9 +246,15 @@ class AccountDialog(ft.AlertDialog):
 
 
 class NewMessageRow(ft.Row):
-    def __init__(self, storage: AsyncKeyValueStorage, chat_message_pubsub: PubSub):
+    def __init__(
+        self,
+        storage: AsyncKeyValueStorage,
+        chat_message_pubsub: PubSub,
+        reconnect_callback: Coroutine,
+    ):
         self.storage = storage
         self.chat_message_pubsub = chat_message_pubsub
+        self.reconnect_callback = reconnect_callback
 
         # A new message entry form
         self.new_message = ft.TextField(
@@ -261,65 +267,114 @@ class NewMessageRow(ft.Row):
             expand=True,
             on_submit=self.send_message_click,
             on_focus=self.new_message_focus,
+            on_blur=self.new_message_clear_error,
+            on_change=self.new_message_clear_error,
         )
-        super().__init__(
-            [
-                self.new_message,
-                ft.IconButton(
-                    icon=ft.icons.SEND_ROUNDED,
-                    tooltip="Send message",
-                    on_click=self.send_message_click,
-                ),
-            ]
+        self.send_message = ft.IconButton(
+            icon=ft.icons.SEND_ROUNDED,
+            tooltip="Send message",
+            on_click=self.send_message_click,
         )
+
+        super().__init__([self.new_message, self.send_message])
+
+    async def new_message_clear_error(self, e):
+        e.control.error_text = ""
+        await self.page.update_async()
 
     async def new_message_focus(self, e):
         if await self.storage.get("user_name"):
             e.control.prefix = ft.Text(f"{await self.storage.get('user_name')}: ")
+
+            channel = await self.storage.get("channel")
+            if channel:
+                e.control.hint_text = f"Write a message on channel {channel}"
+            else:
+                e.control.hint_text = "Write a message..."
+
             await self.page.update_async()
 
     async def send_message_click(self, _):
-        if self.new_message.value != "":
-            emote_map = {
-                "catFight": Emote(
-                    id="643d8003f6c0390df3367b04",
-                    name="catFight",
-                    source=EmoteSource.SEVENTV,
-                ),
-                "Slapahomie": Emote(
-                    id="60f22ed831ba6ae62262f234",
-                    name="Slapahomie",
-                    source=EmoteSource.SEVENTV,
-                ),
-                "hola": Emote(
-                    id="9b76f5f0f02d42738d337082c0872b2c",
-                    name="hola",
-                    source=EmoteSource.TWITCH,
-                ),
-            }
-            ws: TwitchWebsocket = await self.storage.get("websocket")
-            await ws.send_message(
-                await self.storage.get("channel"), self.new_message.value
-            )
+        if self.new_message.value == "":
+            return
 
-            await self.chat_message_pubsub.send(
-                Message(
-                    User(
-                        name=await self.storage.get("user_name"),
-                        badges=await self.storage.get("user_badges"),
-                        chat_color=await self.storage.get("user_color"),
-                    ),
-                    elements=[
-                        emote_map[element] if element in emote_map else element
-                        for element in self.new_message.value.split(" ")
-                    ],
-                    message_type="chat_message",
+        self.new_message.error_style = ft.TextStyle(size=16)
+
+        disconnect_error = "Please connect to twitch before sending messages."
+
+        websocket = await self.storage.get("websocket")
+        is_connected = websocket and await websocket.is_connected()
+        if not is_connected:
+            self.new_message.error_text = disconnect_error
+            await self.update_async()
+            return
+
+        if not bool(await self.storage.get("user_name")):
+            self.new_message.error_text = (
+                "Please connect to twitch before sending messages."
+            )
+            await self.update_async()
+            return
+
+        if not await self.storage.get("channel"):
+            self.new_message.error_text = (
+                "Please connect to a channel before sending messages."
+            )
+            await self.update_async()
+            return
+
+        emote_map = {
+            "catFight": Emote(
+                id="643d8003f6c0390df3367b04",
+                name="catFight",
+                source=EmoteSource.SEVENTV,
+            ),
+            "Slapahomie": Emote(
+                id="60f22ed831ba6ae62262f234",
+                name="Slapahomie",
+                source=EmoteSource.SEVENTV,
+            ),
+            "hola": Emote(
+                id="9b76f5f0f02d42738d337082c0872b2c",
+                name="hola",
+                source=EmoteSource.TWITCH,
+            ),
+        }
+        try:
+            async with asyncio.timeout(2):
+                await websocket.send_message(
+                    await self.storage.get("channel"), self.new_message.value
                 )
-            )
+        except (asyncio.TimeoutError, Exception):
+            await self.reconnect_callback(True)
+            self.new_message.error_text = disconnect_error
+            await self.update_async()
+            return
 
-            self.new_message.value = ""
-            await self.new_message.focus_async()
-            await self.page.update_async()
+        await self.chat_message_pubsub.send(
+            Message(
+                User(
+                    name=await self.storage.get("user_name"),
+                    badges=await self.storage.get("user_badges"),
+                    chat_color=await self.storage.get("user_color"),
+                ),
+                elements=[
+                    emote_map[element] if element in emote_map else element
+                    for element in self.new_message.value.split(" ")
+                ],
+                message_type="chat_message",
+            )
+        )
+
+        self.new_message.value = ""
+        await self.new_message.focus_async()
+        await self.page.update_async()
+
+
+class SelectChatButton(ft.IconButton):
+    def __init__(self, select_chat_click: Awaitable, storage: AsyncKeyValueStorage):
+        super().__init__(icon=ft.icons.CHAT, on_click=select_chat_click)
+        self.storage = storage
 
 
 class ChatContainer(ft.Container):
@@ -392,14 +447,25 @@ class Hasherino:
         users = await helix.get_users(app_id, token, [])
 
         if users:
-            await self.storage.set("token", token)
-            await self.storage.set("user_name", users[0].display_name)
-            await self.storage.set("user", users[0])
-            socket: TwitchWebsocket = await self.storage.get("websocket")
-            await self.storage.set(
-                "ttv_badges", await helix.get_global_badges(app_id, token)
+            websocket: TwitchWebsocket = await self.storage.get("websocket")
+
+            asyncio.ensure_future(
+                websocket.listen_message(
+                    message_callback=self.message_received,
+                    reconnect_callback=self.status_column.set_reconnecting_status,
+                    token=token,
+                    username=users[0].login,
+                )
             )
-            await socket.authenticate(token, users[0].login)
+
+            asyncio.gather(
+                self.storage.set("token", token),
+                self.storage.set("user_name", users[0].display_name),
+                self.storage.set("user", users[0]),
+                self.storage.set(
+                    "ttv_badges", await helix.get_global_badges(app_id, token)
+                ),
+            )
         else:
             self.page.dialog = ft.AlertDialog(
                 content=ft.Text("Failed to authenticate.")
@@ -421,13 +487,21 @@ class Hasherino:
                     message.get_author_displayname().lower()
                     == (await self.storage.get("user_name")).lower()
                 ):
-                    await self.storage.set(
-                        "user_badges",
-                        message.get_badges(await self.storage.get("ttv_badges")),
-                    )
-                    await self.storage.set(
-                        "user_color", message.get_author_chat_color()
-                    )
+                    async with asyncio.TaskGroup() as tg:
+                        tg.create_task(
+                            self.storage.set(
+                                "user_badges",
+                                message.get_badges(
+                                    await self.storage.get("ttv_badges")
+                                ),
+                            )
+                        )
+
+                        tg.create_task(
+                            self.storage.set(
+                                "user_color", message.get_author_chat_color()
+                            )
+                        )
 
             case Command.PRIVMSG:
                 author: str = message.get_author_displayname()
@@ -462,14 +536,7 @@ class Hasherino:
             await self.page.update_async()
             await websocket.join_channel(channel.value)
             await self.storage.set("channel", channel.value)
-
-            while True:
-                task = asyncio.create_task(
-                    websocket.listen_message(self.message_received)
-                )
-
-                while not task.done():
-                    await asyncio.sleep(0.3)
+            await self.page.update_async()
 
         channel.on_submit = join_chat_click
 
@@ -484,10 +551,17 @@ class Hasherino:
         self.page.horizontal_alignment = "stretch"
         self.page.title = "hasherino"
 
-        self.page.dialog = AccountDialog(self.storage)
-
-        chat_container = ChatContainer(self.storage, self.font_size_pubsub)
         self.chat_message_pubsub = PubSub()
+        self.page.dialog = AccountDialog(self.storage)
+        self.status_column = StatusColumn(self.storage)
+        chat_container = ChatContainer(self.storage, self.font_size_pubsub)
+        self.new_message_row = NewMessageRow(
+            self.storage,
+            self.chat_message_pubsub,
+            self.status_column.set_reconnecting_status,
+        )
+        self.select_chat_button = SelectChatButton(self.select_chat_click, self.storage)
+
         await self.chat_message_pubsub.subscribe(chat_container.on_message)
 
         # Add everything to the page
@@ -495,13 +569,46 @@ class Hasherino:
             ft.Row(
                 [
                     ft.IconButton(icon=ft.icons.LOGIN, on_click=self.login_click),
-                    ft.IconButton(icon=ft.icons.CHAT, on_click=self.select_chat_click),
+                    self.select_chat_button,
                     ft.IconButton(icon=ft.icons.SETTINGS, on_click=self.settings_click),
                 ]
             ),
             chat_container,
-            NewMessageRow(self.storage, self.chat_message_pubsub),
+            self.new_message_row,
+            self.status_column,
         )
+
+
+class StatusColumn(ft.Column):
+    def __init__(
+        self,
+        storage: AsyncKeyValueStorage,
+    ):
+        self.reconnecting_status = ft.Row(
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.ProgressRing(width=16, height=16, stroke_width=2),
+                ft.Text("Reconnecting..."),
+            ],
+        )
+        self.storage = storage
+        super().__init__()
+
+    async def set_reconnecting_status(self, reconnecting: bool):
+        await self.storage.set("reconnecting", reconnecting)
+
+        if reconnecting:
+            self.controls.append(self.reconnecting_status)
+        else:
+            if self.reconnecting_status in self.controls:
+                self.controls.remove(self.reconnecting_status)
+
+            channel = await self.storage.get("channel")
+            if channel:
+                websocket = await self.storage.get("websocket")
+                await websocket.join_channel(channel)
+
+        await self.page.update_async()
 
 
 async def main(page: ft.Page):
@@ -516,13 +623,11 @@ async def main(page: ft.Page):
     websockets_logger.setLevel(logging.INFO)
 
     storage = MemoryOnlyStorage(page)
-    websocket = TwitchWebsocket()
     asyncio.gather(
-        websocket.connect_websocket(),
         storage.set("chat_font_size", 18),
         storage.set("max_messages_per_chat", 100),
         storage.set("app_id", "hvmj7blkwy2gw3xf820n47i85g4sub"),
-        storage.set("websocket", websocket),
+        storage.set("websocket", TwitchWebsocket()),
     )
     hasherino = Hasherino(PubSub(), storage, page)
     await hasherino.run()
