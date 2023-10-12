@@ -524,7 +524,7 @@ class Hasherino:
                             for element in message.get_message_text().split(" ")
                         ],
                         message_type="chat_message",
-                        me=True,
+                        me=message.is_me(),
                     )
                 )
             case _:
