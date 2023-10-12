@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from abc import ABC
+from enum import Enum, auto
 from math import isclose
 from typing import Any, Awaitable, Coroutine
 
@@ -161,6 +162,13 @@ class SettingsView(ft.View):
                         width=500,
                         on_change=self._max_messages_change,
                     ),
+                    ft.Text(),
+                    ft.TextField(
+                        value=await self.storage.get("chat_update_rate"),
+                        label="Chat UI Update rate(lower = higher CPU usage):",
+                        width=500,
+                        on_change=self._chat_update_rate_change,
+                    ),
                 ],
             ),
         )
@@ -214,6 +222,23 @@ class SettingsView(ft.View):
         await self.storage.set("chat_font_size", e.control.value)
         await self.font_size_pubsub.send(e.control.value)
         await self.page.update_async()
+
+    async def _chat_update_rate_change(self, e):
+        try:
+            value = float(e.control.value)
+
+            if value < 0.3 or value > 1:
+                raise ValueError
+
+            e.control.error_text = ""
+            await self.storage.set("chat_update_rate", e.control.value)
+            logging.debug(f"Set chat_update_rate to {value}")
+
+        except ValueError:
+            e.control.error_text = "Value must be a decimal between 0.3 and 1."
+
+        finally:
+            await self.page.update_async()
 
 
 class AccountDialog(ft.AlertDialog):
@@ -380,6 +405,11 @@ class SelectChatButton(ft.IconButton):
 
 
 class ChatContainer(ft.Container):
+    class _UiUpdateType(Enum):
+        NO_UPDATE = (auto(),)
+        SCROLL = (auto(),)
+        PAGE = (auto(),)
+
     def __init__(self, storage: AsyncKeyValueStorage, font_size_pubsub: PubSub):
         self.storage = storage
         self.font_size_pubsub = font_size_pubsub
@@ -399,6 +429,20 @@ class ChatContainer(ft.Container):
             padding=10,
             expand=True,
         )
+        self.scheduled_ui_update: self._UiUpdateType = self._UiUpdateType.NO_UPDATE
+        asyncio.ensure_future(self.update_ui())
+
+    async def update_ui(self):
+        while True:
+            match self.scheduled_ui_update:
+                case self._UiUpdateType.SCROLL:
+                    await self.chat.scroll_to_async(offset=-1, duration=10)
+                case self._UiUpdateType.PAGE:
+                    await self.page.update_async()
+                case self._UiUpdateType.NO_UPDATE | _:
+                    pass
+
+            await asyncio.sleep(float(await self.storage.get("chat_update_rate")))
 
     async def on_scroll(self, event: ft.OnScrollEvent):
         self.is_chat_scrolled_down = isclose(
@@ -428,9 +472,11 @@ class ChatContainer(ft.Container):
             del self.chat.controls[:n_messages_to_remove]
 
         if self.is_chat_scrolled_down:
-            await self.chat.scroll_to_async(offset=-1, duration=10)
-        else:
-            await self.page.update_async()
+            self.scheduled_ui_update = self._UiUpdateType.SCROLL
+        elif (
+            self.scheduled_ui_update != self._UiUpdateType.SCROLL
+        ):  # Scroll already updates
+            self.scheduled_ui_updates.add(self.page.update_async())
 
         logging.debug(f"Chat has {len(self.chat.controls)} lines in it")
 
@@ -628,6 +674,7 @@ async def main(page: ft.Page):
     storage = MemoryOnlyStorage(page)
     asyncio.gather(
         storage.set("chat_font_size", 18),
+        storage.set("chat_update_rate", 0.5),
         storage.set("max_messages_per_chat", 100),
         storage.set("app_id", "hvmj7blkwy2gw3xf820n47i85g4sub"),
         storage.set("websocket", TwitchWebsocket()),
