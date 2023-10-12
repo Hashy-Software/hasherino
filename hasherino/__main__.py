@@ -583,6 +583,10 @@ class Hasherino:
             websocket: TwitchWebsocket = await self.storage.get("websocket")
             self.page.dialog.open = False
             await self.page.update_async()
+
+            if await self.storage.get("channel"):
+                await websocket.leave_channel(await self.storage.get("channel"))
+
             await websocket.join_channel(channel.value)
             await self.storage.set("channel", channel.value)
             await self.page.update_async()

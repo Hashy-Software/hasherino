@@ -342,6 +342,12 @@ class TwitchWebsocket:
 
         await self._websocket.send(f"JOIN #{channel}")
 
+    async def leave_channel(self, channel: str):
+        if self._websocket is None:
+            raise Exception("Websocket not connected")
+
+        await self._websocket.send(f"PART #{channel}")
+
     async def send_message(self, channel: str, message: str):
         logging.debug(f"Sending message on channel {channel} message: {message}")
 
