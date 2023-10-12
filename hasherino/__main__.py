@@ -476,7 +476,7 @@ class ChatContainer(ft.Container):
         elif (
             self.scheduled_ui_update != self._UiUpdateType.SCROLL
         ):  # Scroll already updates
-            self.scheduled_ui_updates.add(self.page.update_async())
+            self.scheduled_ui_update.add(self.page.update_async())
 
         logging.debug(f"Chat has {len(self.chat.controls)} lines in it")
 
