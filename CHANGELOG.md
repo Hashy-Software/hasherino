@@ -3,3 +3,4 @@ Changes:
 * CPU usage improved by removing unnecessary UI updates being done even without new messages
 * Improve logging(closes #17)
 * Save log to a file and show its path on settings(closes #7)
+* Save window dimensions(closes #14)

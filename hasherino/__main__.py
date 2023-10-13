@@ -628,7 +628,19 @@ class Hasherino:
         self.page.dialog.open = True
         await self.page.update_async()
 
+    async def on_resize(self, _):
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(
+                self.persistent_storage.set("window_height", self.page.window_height)
+            )
+            tg.create_task(
+                self.persistent_storage.set("window_width", self.page.window_width)
+            )
+
     async def run(self):
+        self.page.window_width = await self.persistent_storage.get("window_width")
+        self.page.window_height = await self.persistent_storage.get("window_height")
+        self.page.on_resize = self.on_resize
         self.page.horizontal_alignment = "stretch"
         self.page.title = "hasherino"
 
@@ -750,6 +762,8 @@ async def main(page: ft.Page):
             persistent_storage.set("chat_font_size", 18),
             persistent_storage.set("chat_update_rate", 0.5),
             persistent_storage.set("max_messages_per_chat", 100),
+            persistent_storage.set("window_width", 500),
+            persistent_storage.set("window_height", 800),
             persistent_storage.set("app_id", app_id),
             persistent_storage.set("not_first_run", True),
         )
