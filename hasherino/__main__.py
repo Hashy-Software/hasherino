@@ -3,6 +3,7 @@ import logging
 from abc import ABC
 from enum import Enum, auto
 from math import isclose
+from pathlib import Path
 from typing import Any, Awaitable, Coroutine
 
 import flet as ft
@@ -11,6 +12,8 @@ from hasherino import helix, user_auth
 from hasherino.hasherino_dataclasses import Emote, EmoteSource, HasherinoUser, Message
 from hasherino.storage import AsyncKeyValueStorage, MemoryOnlyStorage, PersistentStorage
 from hasherino.twitch_websocket import Command, ParsedMessage, TwitchWebsocket
+
+_LOG_PATH = Path("hasherino.log")
 
 
 class PubSub:
@@ -119,6 +122,7 @@ class SettingsView(ft.View):
                     tabs=[
                         await self._get_general_tab(),
                         await self._get_appearance_tab(),
+                        await self._get_debug_tab(),
                     ]
                 ),
             ],
@@ -171,6 +175,33 @@ class SettingsView(ft.View):
                 ],
             ),
         )
+
+    async def _get_debug_tab(self) -> ft.Tab:
+        return ft.Tab(
+            text="Debug",
+            icon=ft.icons.BUG_REPORT,
+            content=ft.Column(
+                controls=[
+                    ft.Text(),
+                    ft.Text("Log file location"),
+                    ft.Row(
+                        controls=[
+                            ft.TextField(
+                                value=str(_LOG_PATH.absolute()),
+                                read_only=True,
+                                expand=True,
+                            ),
+                            ft.IconButton(
+                                icon=ft.icons.COPY, on_click=self._log_path_copy_click
+                            ),
+                        ]
+                    ),
+                ]
+            ),
+        )
+
+    async def _log_path_copy_click(self, _):
+        await self.page.set_clipboard_async(str(_LOG_PATH.absolute()))
 
     async def _max_messages_change(self, e):
         try:
@@ -691,7 +722,10 @@ async def main(page: ft.Page):
         level=logging.DEBUG,
         format="%(asctime)s | %(name)s | %(filename)s | %(levelname)s | %(funcName)s | %(lineno)d | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[logging.StreamHandler()],  # Outputs logs to the console
+        handlers=[
+            logging.StreamHandler(),  # Outputs logs to the console
+            logging.FileHandler("hasherino.log", mode="w"),
+        ],
     )
 
     websockets_logger = logging.getLogger("websockets")
