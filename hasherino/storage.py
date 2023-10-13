@@ -37,6 +37,12 @@ class MemoryOnlyStorage(AsyncKeyValueStorage):
 
 
 class PersistentStorage(AsyncKeyValueStorage):
+    """
+    Persistent async key-value storage.
+
+    Locks implemented based on wikipedia's pseucode for a Readers–writer lock
+    """
+
     def __init__(self, file: TextIOBase | str = "db.json") -> None:
         """
         File can be the path string to a database file or a TextIOBase if you don't want to use a file,
@@ -49,7 +55,9 @@ class PersistentStorage(AsyncKeyValueStorage):
         else:
             raise Exception("Invalid file type")
 
-        self._lock = asyncio.Lock()
+        self._r = asyncio.Lock()
+        self._g = asyncio.Lock()
+        self._b = 0
 
         try:
             self._data: dict = json.load(self._file)
@@ -69,30 +77,58 @@ class PersistentStorage(AsyncKeyValueStorage):
         """
         self._file.close()
 
+    async def _begin_read(self):
+        await self._r.acquire()
+        self._b += 1
+        if self._b == 1:
+            await self._g.acquire()
+        self._r.release()
+
+    async def _end_read(self):
+        await self._r.acquire()
+        self._b -= 1
+        if self._b == 0:
+            self._g.release()
+        self._r.release()
+
+    async def _begin_write(self):
+        await self._g.acquire()
+
+    async def _end_write(self):
+        self._g.release()
+
     async def get(self, key) -> Any:
         if key == "token":
             return keyring.get_password("hasherino", "token")
 
-        async with self._lock:
-            try:
-                return self._data.get(key, None)
-            except:
-                return None
+        await self._begin_read()
+
+        result = self._data.get(key, None)
+
+        await self._end_read()
+
+        return result
 
     async def set(self, key, value):
         if key == "token":
             keyring.set_password("hasherino", "token", value)
             return
 
-        async with self._lock:
-            self._data[key] = value
-            self._file.truncate(0)
-            self._file.seek(0)
-            json.dump(self._data, self._file, sort_keys=True, indent=4)
+        await self._begin_write()
+
+        self._data[key] = value
+        self._file.truncate(0)
+        self._file.seek(0)
+        json.dump(self._data, self._file, sort_keys=True, indent=4)
+
+        await self._end_write()
 
     async def remove(self, key):
-        async with self._lock:
-            self._data.pop(key)
-            self._file.truncate(0)
-            self._file.seek(0)
-            json.dump(self._data, self._file, sort_keys=True, indent=4)
+        await self._begin_write()
+
+        self._data.pop(key)
+        self._file.truncate(0)
+        self._file.seek(0)
+        json.dump(self._data, self._file, sort_keys=True, indent=4)
+
+        await self._end_write()
