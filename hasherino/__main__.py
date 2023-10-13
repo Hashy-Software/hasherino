@@ -476,6 +476,8 @@ class Hasherino:
         self.page = page
 
     async def login_click(self, _):
+        logging.debug("Clicked login")
+
         app_id = await self.persistent_storage.get("app_id")
         token = await user_auth.request_oauth_token(app_id)
         users = await helix.get_users(app_id, token, [])
@@ -508,12 +510,15 @@ class Hasherino:
         await self.page.update_async()
 
     async def settings_click(self, _):
+        logging.debug("Clicked on settings")
         sv = SettingsView(self.font_size_pubsub, self.persistent_storage)
         await sv.init()
         self.page.views.append(sv)
         await self.page.update_async()
 
     async def message_received(self, message: ParsedMessage):
+        logging.debug(f"Received message with command {message.get_command()}")
+
         match message.get_command():
             case Command.USERSTATE | Command.GLOBALUSERSTATE:
                 if (
@@ -563,6 +568,7 @@ class Hasherino:
 
     async def select_chat_click(self, _):
         channel = ft.TextField(label="Channel")
+        logging.debug("Clicked on select chat")
 
         async def join_chat_click(_):
             websocket: TwitchWebsocket = await self.memory_storage.get("websocket")
@@ -570,10 +576,14 @@ class Hasherino:
             await self.page.update_async()
 
             if await self.persistent_storage.get("channel"):
+                logging.info(
+                    f"Leaving channel {await self.persistent_storage.get('channel')}"
+                )
                 await websocket.leave_channel(
                     await self.persistent_storage.get("channel")
                 )
 
+            logging.info(f"Joining channel {channel.value}")
             await websocket.join_channel(channel.value)
             await self.persistent_storage.set("channel", channel.value)
             await self.page.update_async()

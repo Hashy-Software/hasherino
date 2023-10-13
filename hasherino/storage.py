@@ -1,12 +1,12 @@
 import asyncio
 import json
+import logging
 from abc import ABC
 from io import TextIOBase
 from pathlib import Path
 from typing import Any
 
 import keyring
-from aiorwlock import RWLock
 from flet import Page
 
 
@@ -27,12 +27,15 @@ class MemoryOnlyStorage(AsyncKeyValueStorage):
         self.page = page
 
     async def get(self, key) -> Any:
-        return self.page.session.get(key)
+        value = self.page.session.get(key)
+        return value
 
     async def set(self, key, value):
+        logging.debug(f"Memory storage set {key} to {value}")
         self.page.session.set(key, value)
 
     async def remove(self, key):
+        logging.debug(f"Memory storage removed {key}")
         self.page.session.remove(key)
 
 
@@ -116,6 +119,7 @@ class PersistentStorage(AsyncKeyValueStorage):
 
         await self._begin_write()
 
+        logging.debug(f"Persistent storage set {key} to {value}")
         self._data[key] = value
         self._file.truncate(0)
         self._file.seek(0)
@@ -126,6 +130,7 @@ class PersistentStorage(AsyncKeyValueStorage):
     async def remove(self, key):
         await self._begin_write()
 
+        logging.debug(f"Persistent storage removed {key}")
         self._data.pop(key)
         self._file.truncate(0)
         self._file.seek(0)
