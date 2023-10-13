@@ -8,8 +8,8 @@ from typing import Any, Awaitable, Coroutine
 import flet as ft
 
 from hasherino import helix, user_auth
-from hasherino.hasherino_dataclasses import Emote, EmoteSource, Message, User
-from hasherino.storage import AsyncKeyValueStorage, MemoryOnlyStorage
+from hasherino.hasherino_dataclasses import Emote, EmoteSource, HasherinoUser, Message
+from hasherino.storage import AsyncKeyValueStorage, MemoryOnlyStorage, PersistentStorage
 from hasherino.twitch_websocket import Command, ParsedMessage, TwitchWebsocket
 
 
@@ -249,11 +249,13 @@ class AccountDialog(ft.AlertDialog):
 class NewMessageRow(ft.Row):
     def __init__(
         self,
-        storage: AsyncKeyValueStorage,
+        memory_storage: AsyncKeyValueStorage,
+        persistent_storage: AsyncKeyValueStorage,
         chat_message_pubsub: PubSub,
         reconnect_callback: Coroutine,
     ):
-        self.storage = storage
+        self.memory_storage = memory_storage
+        self.persistent_storage = persistent_storage
         self.chat_message_pubsub = chat_message_pubsub
         self.reconnect_callback = reconnect_callback
 
@@ -284,10 +286,12 @@ class NewMessageRow(ft.Row):
         await self.page.update_async()
 
     async def new_message_focus(self, e):
-        if await self.storage.get("user_name"):
-            e.control.prefix = ft.Text(f"{await self.storage.get('user_name')}: ")
+        if await self.persistent_storage.get("user_name"):
+            e.control.prefix = ft.Text(
+                f"{await self.persistent_storage.get('user_name')}: "
+            )
 
-            channel = await self.storage.get("channel")
+            channel = await self.persistent_storage.get("channel")
             if channel:
                 e.control.hint_text = f"Write a message on channel {channel}"
             else:
@@ -303,21 +307,21 @@ class NewMessageRow(ft.Row):
 
         disconnect_error = "Please connect to twitch before sending messages."
 
-        websocket = await self.storage.get("websocket")
+        websocket = await self.memory_storage.get("websocket")
         is_connected = websocket and await websocket.is_connected()
         if not is_connected:
             self.new_message.error_text = disconnect_error
             await self.update_async()
             return
 
-        if not bool(await self.storage.get("user_name")):
+        if not bool(await self.persistent_storage.get("user_name")):
             self.new_message.error_text = (
                 "Please connect to twitch before sending messages."
             )
             await self.update_async()
             return
 
-        if not await self.storage.get("channel"):
+        if not await self.persistent_storage.get("channel"):
             self.new_message.error_text = (
                 "Please connect to a channel before sending messages."
             )
@@ -344,7 +348,7 @@ class NewMessageRow(ft.Row):
         try:
             async with asyncio.timeout(2):
                 await websocket.send_message(
-                    await self.storage.get("channel"), self.new_message.value
+                    await self.persistent_storage.get("channel"), self.new_message.value
                 )
         except (asyncio.TimeoutError, Exception):
             await self.reconnect_callback(True)
@@ -354,10 +358,10 @@ class NewMessageRow(ft.Row):
 
         await self.chat_message_pubsub.send(
             Message(
-                User(
-                    name=await self.storage.get("user_name"),
-                    badges=await self.storage.get("user_badges"),
-                    chat_color=await self.storage.get("user_color"),
+                HasherinoUser(
+                    name=await self.persistent_storage.get("user_name"),
+                    badges=await self.memory_storage.get("user_badges"),
+                    chat_color=await self.memory_storage.get("user_color"),
                 ),
                 elements=[
                     emote_map[element] if element in emote_map else element
@@ -374,9 +378,8 @@ class NewMessageRow(ft.Row):
 
 
 class SelectChatButton(ft.IconButton):
-    def __init__(self, select_chat_click: Awaitable, storage: AsyncKeyValueStorage):
+    def __init__(self, select_chat_click: Awaitable):
         super().__init__(icon=ft.icons.CHAT, on_click=select_chat_click)
-        self.storage = storage
 
 
 class ChatContainer(ft.Container):
@@ -461,19 +464,24 @@ class ChatContainer(ft.Container):
 
 class Hasherino:
     def __init__(
-        self, font_size_pubsub: PubSub, storage: AsyncKeyValueStorage, page: ft.Page
+        self,
+        font_size_pubsub: PubSub,
+        memory_storage: AsyncKeyValueStorage,
+        persistent_storage: AsyncKeyValueStorage,
+        page: ft.Page,
     ) -> None:
         self.font_size_pubsub = font_size_pubsub
-        self.storage = storage
+        self.memory_storage = memory_storage
+        self.persistent_storage = persistent_storage
         self.page = page
 
     async def login_click(self, _):
-        app_id = await self.storage.get("app_id")
+        app_id = await self.persistent_storage.get("app_id")
         token = await user_auth.request_oauth_token(app_id)
         users = await helix.get_users(app_id, token, [])
 
         if users:
-            websocket: TwitchWebsocket = await self.storage.get("websocket")
+            websocket: TwitchWebsocket = await self.memory_storage.get("websocket")
 
             asyncio.ensure_future(
                 websocket.listen_message(
@@ -485,10 +493,9 @@ class Hasherino:
             )
 
             asyncio.gather(
-                self.storage.set("token", token),
-                self.storage.set("user_name", users[0].display_name),
-                self.storage.set("user", users[0]),
-                self.storage.set(
+                self.persistent_storage.set("token", token),
+                self.persistent_storage.set("user_name", users[0].display_name),
+                self.memory_storage.set(
                     "ttv_badges", await helix.get_global_badges(app_id, token)
                 ),
             )
@@ -501,7 +508,7 @@ class Hasherino:
         await self.page.update_async()
 
     async def settings_click(self, _):
-        sv = SettingsView(self.font_size_pubsub, self.storage)
+        sv = SettingsView(self.font_size_pubsub, self.persistent_storage)
         await sv.init()
         self.page.views.append(sv)
         await self.page.update_async()
@@ -511,20 +518,20 @@ class Hasherino:
             case Command.USERSTATE | Command.GLOBALUSERSTATE:
                 if (
                     message.get_author_displayname().lower()
-                    == (await self.storage.get("user_name")).lower()
+                    == (await self.persistent_storage.get("user_name")).lower()
                 ):
                     async with asyncio.TaskGroup() as tg:
                         tg.create_task(
-                            self.storage.set(
+                            self.memory_storage.set(
                                 "user_badges",
                                 message.get_badges(
-                                    await self.storage.get("ttv_badges")
+                                    await self.memory_storage.get("ttv_badges")
                                 ),
                             )
                         )
 
                         tg.create_task(
-                            self.storage.set(
+                            self.memory_storage.set(
                                 "user_color", message.get_author_chat_color()
                             )
                         )
@@ -536,10 +543,10 @@ class Hasherino:
 
                 await self.chat_message_pubsub.send(
                     Message(
-                        User(
+                        HasherinoUser(
                             name=author,
                             badges=message.get_badges(
-                                await self.storage.get("ttv_badges")
+                                await self.memory_storage.get("ttv_badges")
                             ),
                             chat_color=message.get_author_chat_color(),
                         ),
@@ -558,15 +565,17 @@ class Hasherino:
         channel = ft.TextField(label="Channel")
 
         async def join_chat_click(_):
-            websocket: TwitchWebsocket = await self.storage.get("websocket")
+            websocket: TwitchWebsocket = await self.memory_storage.get("websocket")
             self.page.dialog.open = False
             await self.page.update_async()
 
-            if await self.storage.get("channel"):
-                await websocket.leave_channel(await self.storage.get("channel"))
+            if await self.persistent_storage.get("channel"):
+                await websocket.leave_channel(
+                    await self.persistent_storage.get("channel")
+                )
 
             await websocket.join_channel(channel.value)
-            await self.storage.set("channel", channel.value)
+            await self.persistent_storage.set("channel", channel.value)
             await self.page.update_async()
 
         channel.on_submit = join_chat_click
@@ -583,15 +592,16 @@ class Hasherino:
         self.page.title = "hasherino"
 
         self.chat_message_pubsub = PubSub()
-        self.page.dialog = AccountDialog(self.storage)
-        self.status_column = StatusColumn(self.storage)
-        chat_container = ChatContainer(self.storage, self.font_size_pubsub)
+        self.page.dialog = AccountDialog(self.persistent_storage)
+        self.status_column = StatusColumn(self.memory_storage, self.persistent_storage)
+        chat_container = ChatContainer(self.persistent_storage, self.font_size_pubsub)
         self.new_message_row = NewMessageRow(
-            self.storage,
+            self.memory_storage,
+            self.persistent_storage,
             self.chat_message_pubsub,
             self.status_column.set_reconnecting_status,
         )
-        self.select_chat_button = SelectChatButton(self.select_chat_click, self.storage)
+        self.select_chat_button = SelectChatButton(self.select_chat_click)
 
         await self.chat_message_pubsub.subscribe(chat_container.on_message)
 
@@ -609,11 +619,32 @@ class Hasherino:
             self.status_column,
         )
 
+        if await self.persistent_storage.get("user_name"):
+            websocket: TwitchWebsocket = await self.memory_storage.get("websocket")
+
+            asyncio.ensure_future(
+                websocket.listen_message(
+                    message_callback=self.message_received,
+                    reconnect_callback=self.status_column.set_reconnecting_status,
+                    token=await self.persistent_storage.get("token"),
+                    username=await self.persistent_storage.get("user_name"),
+                    join_channel=await self.persistent_storage.get("channel"),
+                )
+            )
+            await self.memory_storage.set(
+                "ttv_badges",
+                await helix.get_global_badges(
+                    await self.persistent_storage.get("app_id"),
+                    await self.persistent_storage.get("token"),
+                ),
+            )
+
 
 class StatusColumn(ft.Column):
     def __init__(
         self,
-        storage: AsyncKeyValueStorage,
+        memory_storage: AsyncKeyValueStorage,
+        persistent_storage: AsyncKeyValueStorage,
     ):
         self.reconnecting_status = ft.Row(
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -622,11 +653,14 @@ class StatusColumn(ft.Column):
                 ft.Text("Reconnecting..."),
             ],
         )
-        self.storage = storage
+
+        self.memory_storage = memory_storage
+        self.persistent_storage = persistent_storage
+
         super().__init__()
 
     async def set_reconnecting_status(self, reconnecting: bool):
-        await self.storage.set("reconnecting", reconnecting)
+        await self.memory_storage.set("reconnecting", reconnecting)
 
         if reconnecting:
             self.controls.append(self.reconnecting_status)
@@ -634,9 +668,9 @@ class StatusColumn(ft.Column):
             if self.reconnecting_status in self.controls:
                 self.controls.remove(self.reconnecting_status)
 
-            channel = await self.storage.get("channel")
+            channel = await self.persistent_storage.get("channel")
             if channel:
-                websocket = await self.storage.get("websocket")
+                websocket = await self.memory_storage.get("websocket")
                 await websocket.join_channel(channel)
 
         await self.page.update_async()
@@ -653,15 +687,30 @@ async def main(page: ft.Page):
     websockets_logger = logging.getLogger("websockets")
     websockets_logger.setLevel(logging.INFO)
 
-    storage = MemoryOnlyStorage(page)
-    asyncio.gather(
-        storage.set("chat_font_size", 18),
-        storage.set("chat_update_rate", 0.5),
-        storage.set("max_messages_per_chat", 100),
-        storage.set("app_id", "hvmj7blkwy2gw3xf820n47i85g4sub"),
-        storage.set("websocket", TwitchWebsocket()),
-    )
-    hasherino = Hasherino(PubSub(), storage, page)
+    persistent_storage = PersistentStorage()
+    memory_storage = MemoryOnlyStorage(page)
+
+    app_id = "hvmj7blkwy2gw3xf820n47i85g4sub"
+
+    websocket = TwitchWebsocket()
+    await memory_storage.set("websocket", websocket)
+
+    if await persistent_storage.get("token"):
+        renewed_token = await user_auth.request_oauth_token(
+            app_id, await persistent_storage.get("token")
+        )
+        await persistent_storage.set("token", renewed_token)
+
+    if not await persistent_storage.get("not_first_run"):
+        asyncio.gather(
+            persistent_storage.set("chat_font_size", 18),
+            persistent_storage.set("chat_update_rate", 0.5),
+            persistent_storage.set("max_messages_per_chat", 100),
+            persistent_storage.set("app_id", app_id),
+            persistent_storage.set("not_first_run", True),
+        )
+
+    hasherino = Hasherino(PubSub(), memory_storage, persistent_storage, page)
     await hasherino.run()
 
 

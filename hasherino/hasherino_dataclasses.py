@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from json import dumps
 
 
 @dataclass
@@ -10,7 +11,7 @@ class Badge:
 
 
 @dataclass
-class User:
+class HasherinoUser:
     name: str
     badges: list[Badge] | None = None
     chat_color: str | None = None
@@ -39,7 +40,11 @@ class Emote:
 
 @dataclass
 class Message:
-    user: User
+    user: HasherinoUser
     elements: list[str | Emote]
     message_type: str
     me: bool
+
+
+# print(User("asd").toJSON())
+# pass

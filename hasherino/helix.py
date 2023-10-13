@@ -2,18 +2,19 @@ import enum
 import logging
 import ssl
 from dataclasses import dataclass
+from json import dumps
 from typing import Iterable
 
 import certifi
 from aiohttp import ClientSession, TCPConnector
 
-__all__ = ["get_users", "update_chat_color", "User", "NormalUserColor"]
+__all__ = ["get_users", "update_chat_color", "TwitchUser", "NormalUserColor"]
 
 _BASE_URL = "https://api.twitch.tv/helix/"
 
 
 @dataclass
-class User:
+class TwitchUser:
     id: str
     login: str
     display_name: str
@@ -61,7 +62,7 @@ async def get_users(
     app_id: str,
     oauth_token: str,
     users: Iterable[str | int],
-) -> list[User]:
+) -> list[TwitchUser]:
     """
     Raises Exception for invalid status code or KeyError if the json response is invalid
     """
@@ -88,7 +89,7 @@ async def get_users(
             if response.status != 200:
                 raise Exception("Unable to get user")
 
-            return [User(user) for user in json_result["data"]]
+            return [TwitchUser(user) for user in json_result["data"]]
 
 
 async def get_user_chat_color(

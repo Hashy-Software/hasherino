@@ -363,6 +363,7 @@ class TwitchWebsocket:
         reconnect_callback: Awaitable[bool],
         token: str,
         username: str,
+        join_channel: str | None = None,
     ):
         ssl_context = ssl.create_default_context(cafile=certifi.where())
         async for websocket in websockets.connect(
@@ -379,6 +380,9 @@ class TwitchWebsocket:
                 )
                 await self._authenticate(token, username)
                 await reconnect_callback(False)
+
+                if join_channel:
+                    await self.join_channel(join_channel)
 
                 async for message in websocket:
                     parsed_message: ParsedMessage = ParsedMessage(message)
