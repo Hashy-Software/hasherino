@@ -90,7 +90,7 @@ class ChatMessage(ft.Row):
             if type(element) == str:
                 theme_text_color = (
                     ft.colors.WHITE
-                    if self.page.theme_mode == ft.ThemeMode.DARK
+                    if self.page.platform_brightness == ft.ThemeMode.DARK
                     else ft.colors.BLACK
                 )
                 color = message.user.chat_color if message.me else theme_text_color
@@ -523,7 +523,7 @@ class ChatContainer(ft.Container):
         elif message.message_type == "login_message":
             theme_text_color = (
                 ft.colors.WHITE
-                if self.page.theme_mode == ft.ThemeMode.DARK
+                if self.page.platform_brightness == ft.ThemeMode.DARK
                 else ft.colors.BLACK
             )
             m = ft.Text(
