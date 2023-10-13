@@ -629,13 +629,16 @@ class Hasherino:
         await self.page.update_async()
 
     async def on_resize(self, _):
-        async with asyncio.TaskGroup() as tg:
-            tg.create_task(
-                self.persistent_storage.set("window_height", self.page.window_height)
-            )
-            tg.create_task(
-                self.persistent_storage.set("window_width", self.page.window_width)
-            )
+        if self.page.window_height > 100 and self.page.window_width > 100:
+            async with asyncio.TaskGroup() as tg:
+                tg.create_task(
+                    self.persistent_storage.set(
+                        "window_height", self.page.window_height
+                    )
+                )
+                tg.create_task(
+                    self.persistent_storage.set("window_width", self.page.window_width)
+                )
 
     async def run(self):
         self.page.window_width = await self.persistent_storage.get("window_width")
@@ -758,15 +761,14 @@ async def main(page: ft.Page):
         await persistent_storage.set("token", renewed_token)
 
     if not await persistent_storage.get("not_first_run"):
-        asyncio.gather(
-            persistent_storage.set("chat_font_size", 18),
-            persistent_storage.set("chat_update_rate", 0.5),
-            persistent_storage.set("max_messages_per_chat", 100),
-            persistent_storage.set("window_width", 500),
-            persistent_storage.set("window_height", 800),
-            persistent_storage.set("app_id", app_id),
-            persistent_storage.set("not_first_run", True),
-        )
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(persistent_storage.set("window_width", 500))
+            tg.create_task(persistent_storage.set("chat_font_size", 18))
+            tg.create_task(persistent_storage.set("chat_update_rate", 0.5))
+            tg.create_task(persistent_storage.set("max_messages_per_chat", 100))
+            tg.create_task(persistent_storage.set("window_height", 800))
+            tg.create_task(persistent_storage.set("app_id", app_id))
+            tg.create_task(persistent_storage.set("not_first_run", True))
 
     hasherino = Hasherino(PubSub(), memory_storage, persistent_storage, page)
     await hasherino.run()

@@ -115,6 +115,7 @@ class PersistentStorage(AsyncKeyValueStorage):
     async def set(self, key, value):
         if key == "token":
             keyring.set_password("hasherino", "token", value)
+            # DO NOT log passwords
             return
 
         await self._begin_write()
