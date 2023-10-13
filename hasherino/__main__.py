@@ -429,18 +429,6 @@ class NewMessageRow(ft.Row):
             await self.update_async()
             return
 
-        if await self.persistent_storage.get("color_switcher"):
-            color = choice(list(NormalUserColor))
-            try:
-                await helix.update_chat_color(
-                    await self.persistent_storage.get("app_id"),
-                    await self.persistent_storage.get("token"),
-                    await self.persistent_storage.get("user_id"),
-                    str(color),
-                )
-            except Exception as e:
-                logging.error(f"Switcher failed to switch user chat color: {e}")
-
         await self.chat_message_pubsub.send(
             Message(
                 HasherinoUser(
@@ -460,6 +448,39 @@ class NewMessageRow(ft.Row):
         self.new_message.value = ""
         await self.new_message.focus_async()
         await self.page.update_async()
+
+        if await self.persistent_storage.get("color_switcher"):
+            # Using user_color can cause the color to repeat , since it gets replaced on USERSTATE messages
+            color_index = await self.memory_storage.get("user_color_index")
+
+            if not color_index:
+                color_index = 0
+
+            color_list = [str(c).upper() for c in list(NormalUserColor)]
+
+            color_index = (color_index + 1) % len(color_list)
+
+            try:
+                next_color = color_list[color_index]
+                logging.debug(
+                    f"Next color index: {color_index}. List: {', '.join(color_list)}"
+                )
+                await self.memory_storage.set("user_color_index", color_index)
+            except (ValueError, IndexError) as e:
+                logging.error(f"Error trying to get next switcher chat color: {e}")
+                next_color = choice(color_list)
+
+            try:
+                await helix.update_chat_color(
+                    await self.persistent_storage.get("app_id"),
+                    await self.persistent_storage.get("token"),
+                    await self.persistent_storage.get("user_id"),
+                    next_color,
+                )
+                logging.info(f"Switcher set user color to {next_color}")
+
+            except Exception as e:
+                logging.error(f"Switcher failed to switch user chat color: {e}")
 
 
 class SelectChatButton(ft.IconButton):
