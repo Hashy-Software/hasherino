@@ -1,11 +1,13 @@
 import asyncio
 import logging
+import ssl
 from pathlib import Path
 from random import randint
 from typing import Callable
 from webbrowser import open as wb_open
 
-from aiohttp import ClientSession, web
+import certifi
+from aiohttp import ClientSession, TCPConnector, web
 
 # Field from implicit grant flow used to prevent CSRF attacks
 _STATE = str(randint(1, 100_000_000))
@@ -39,7 +41,10 @@ async def _is_valid_token(token: str) -> bool:
     if not token:
         return False
 
-    async with ClientSession() as session:
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    conn = TCPConnector(ssl=ssl_context)
+
+    async with ClientSession(connector=conn) as session:
         async with session.get(
             "https://id.twitch.tv/oauth2/validate",
             headers={"Authorization": f"OAuth {token}"},

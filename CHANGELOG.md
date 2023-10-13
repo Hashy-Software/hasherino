@@ -6,3 +6,6 @@ Changes:
 * Save window dimensions(closes #14)
 * Add theme selection and show black text when white theme is selected(closes #18)
 * Implement color switcher feature(closes #22)
+
+Hotfix:
+* Fix SSL issue on token verification
