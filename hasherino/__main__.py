@@ -472,7 +472,9 @@ class ChatContainer(ft.Container):
         )
         if n_messages_to_remove > 0:
             del self.chat.controls[:n_messages_to_remove]
-            logging.debug(f"Chat has {len(self.chat.controls)} lines in it")
+            logging.debug(
+                f"Chat has {len(self.chat.controls)} lines in it, removed {n_messages_to_remove}"
+            )
 
         if self.is_chat_scrolled_down:
             self.scheduled_ui_update = self._UiUpdateType.SCROLL
