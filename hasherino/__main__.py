@@ -86,7 +86,12 @@ class ChatMessage(ft.Row):
 
         for element in message.elements:
             if type(element) == str:
-                color = message.user.chat_color if message.me else ft.colors.WHITE
+                theme_text_color = (
+                    ft.colors.WHITE
+                    if self.page.theme_mode == ft.ThemeMode.DARK
+                    else ft.colors.BLACK
+                )
+                color = message.user.chat_color if message.me else theme_text_color
                 result = ChatText(element, color, self.font_size)
             elif type(element) == Emote:
                 result = ChatEmote(
@@ -172,6 +177,17 @@ class SettingsView(ft.View):
                         width=500,
                         on_change_end=self._font_size_change,
                     ),
+                    ft.Text(),
+                    ft.Text("Theme"),
+                    ft.Dropdown(
+                        value=await self.storage.get("theme"),
+                        options=[
+                            ft.dropdown.Option("System"),
+                            ft.dropdown.Option("Dark mode"),
+                            ft.dropdown.Option("Light mode"),
+                        ],
+                        on_change=self._theme_select,
+                    ),
                 ],
             ),
         )
@@ -199,6 +215,20 @@ class SettingsView(ft.View):
                 ]
             ),
         )
+
+    async def _theme_select(self, e):
+        match e.data:
+            case "System":
+                self.page.theme_mode = ft.ThemeMode.SYSTEM
+            case "Dark mode":
+                self.page.theme_mode = ft.ThemeMode.DARK
+            case "Light mode":
+                self.page.theme_mode = ft.ThemeMode.LIGHT
+            case _:
+                pass
+
+        await self.storage.set("theme", e.data)
+        await self.page.update_async()
 
     async def _log_path_copy_click(self, _):
         await self.page.set_clipboard_async(str(_LOG_PATH.absolute()))
@@ -467,10 +497,15 @@ class ChatContainer(ft.Container):
             )
             await m.subscribe_to_font_size_change(self.font_size_pubsub)
         elif message.message_type == "login_message":
+            theme_text_color = (
+                ft.colors.WHITE
+                if self.page.theme_mode == ft.ThemeMode.DARK
+                else ft.colors.BLACK
+            )
             m = ft.Text(
                 message.elements[0],
                 italic=True,
-                color=ft.colors.WHITE,
+                color=theme_text_color,
                 size=await self.storage.get("chat_font_size"),
             )
 
@@ -643,6 +678,17 @@ class Hasherino:
     async def run(self):
         self.page.window_width = await self.persistent_storage.get("window_width")
         self.page.window_height = await self.persistent_storage.get("window_height")
+
+        match await self.persistent_storage.get("theme"):
+            case "System":
+                self.page.theme_mode = ft.ThemeMode.SYSTEM
+            case "Dark mode":
+                self.page.theme_mode = ft.ThemeMode.DARK
+            case "Light mode":
+                self.page.theme_mode = ft.ThemeMode.LIGHT
+            case _:
+                pass
+
         self.page.on_resize = self.on_resize
         self.page.horizontal_alignment = "stretch"
         self.page.title = "hasherino"
@@ -767,6 +813,7 @@ async def main(page: ft.Page):
             tg.create_task(persistent_storage.set("chat_update_rate", 0.5))
             tg.create_task(persistent_storage.set("max_messages_per_chat", 100))
             tg.create_task(persistent_storage.set("window_height", 800))
+            tg.create_task(persistent_storage.set("theme", "System"))
             tg.create_task(persistent_storage.set("app_id", app_id))
             tg.create_task(persistent_storage.set("not_first_run", True))
 

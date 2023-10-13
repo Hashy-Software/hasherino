@@ -4,3 +4,4 @@ Changes:
 * Improve logging(closes #17)
 * Save log to a file and show its path on settings(closes #7)
 * Save window dimensions(closes #14)
+* Add theme selection and show black text when white theme is selected(closes #18)
