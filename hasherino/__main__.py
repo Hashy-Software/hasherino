@@ -4,12 +4,14 @@ from abc import ABC
 from enum import Enum, auto
 from math import isclose
 from pathlib import Path
+from random import choice
 from typing import Any, Awaitable, Coroutine
 
 import flet as ft
 
 from hasherino import helix, user_auth
 from hasherino.hasherino_dataclasses import Emote, EmoteSource, HasherinoUser, Message
+from hasherino.helix import NormalUserColor
 from hasherino.storage import AsyncKeyValueStorage, MemoryOnlyStorage, PersistentStorage
 from hasherino.twitch_websocket import Command, ParsedMessage, TwitchWebsocket
 
@@ -188,6 +190,13 @@ class SettingsView(ft.View):
                         ],
                         on_change=self._theme_select,
                     ),
+                    ft.Text(),
+                    ft.Checkbox(
+                        label="Enable color switcher",
+                        value=await self.storage.get("color_switcher"),
+                        label_position=ft.LabelPosition.LEFT,
+                        on_change=self._on_color_switcher_click,
+                    ),
                 ],
             ),
         )
@@ -215,6 +224,9 @@ class SettingsView(ft.View):
                 ]
             ),
         )
+
+    async def _on_color_switcher_click(self, e):
+        await self.storage.set("color_switcher", e.control.value)
 
     async def _theme_select(self, e):
         match e.data:
@@ -417,6 +429,18 @@ class NewMessageRow(ft.Row):
             await self.update_async()
             return
 
+        if await self.persistent_storage.get("color_switcher"):
+            color = choice(list(NormalUserColor))
+            try:
+                await helix.update_chat_color(
+                    await self.persistent_storage.get("app_id"),
+                    await self.persistent_storage.get("token"),
+                    await self.persistent_storage.get("user_id"),
+                    str(color),
+                )
+            except Exception as e:
+                logging.error(f"Switcher failed to switch user chat color: {e}")
+
         await self.chat_message_pubsub.send(
             Message(
                 HasherinoUser(
@@ -563,6 +587,7 @@ class Hasherino:
             asyncio.gather(
                 self.persistent_storage.set("token", token),
                 self.persistent_storage.set("user_name", users[0].display_name),
+                self.persistent_storage.set("user_id", users[0].id),
                 self.memory_storage.set(
                     "ttv_badges", await helix.get_global_badges(app_id, token)
                 ),
@@ -816,6 +841,7 @@ async def main(page: ft.Page):
             tg.create_task(persistent_storage.set("theme", "System"))
             tg.create_task(persistent_storage.set("app_id", app_id))
             tg.create_task(persistent_storage.set("not_first_run", True))
+            tg.create_task(persistent_storage.set("color_switcher", False))
 
     hasherino = Hasherino(PubSub(), memory_storage, persistent_storage, page)
     await hasherino.run()
