@@ -442,6 +442,8 @@ class ChatContainer(ft.Container):
                 case self._UiUpdateType.NO_UPDATE | _:
                     pass
 
+            self.scheduled_ui_update = self._UiUpdateType.NO_UPDATE
+
             await asyncio.sleep(float(await self.storage.get("chat_update_rate")))
 
     async def on_scroll(self, event: ft.OnScrollEvent):
@@ -470,6 +472,7 @@ class ChatContainer(ft.Container):
         )
         if n_messages_to_remove > 0:
             del self.chat.controls[:n_messages_to_remove]
+            logging.debug(f"Chat has {len(self.chat.controls)} lines in it")
 
         if self.is_chat_scrolled_down:
             self.scheduled_ui_update = self._UiUpdateType.SCROLL
@@ -477,8 +480,6 @@ class ChatContainer(ft.Container):
             self.scheduled_ui_update != self._UiUpdateType.SCROLL
         ):  # Scroll already updates
             self.scheduled_ui_update = self._UiUpdateType.PAGE
-
-        logging.debug(f"Chat has {len(self.chat.controls)} lines in it")
 
 
 class Hasherino:

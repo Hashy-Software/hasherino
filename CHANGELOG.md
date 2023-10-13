@@ -1,3 +1,2 @@
 Changes:
-* Fix UI update error
-* Leave current connected channel when joining a second channel
+* CPU usage improved by removing unnecessary UI updates being done even without new messages
