@@ -861,15 +861,15 @@ async def main(page: ft.Page):
 
     if not await persistent_storage.get("not_first_run"):
         async with asyncio.TaskGroup() as tg:
-            tg.create_task(persistent_storage.set("window_width", 500))
+            tg.create_task(persistent_storage.set("app_id", app_id))
             tg.create_task(persistent_storage.set("chat_font_size", 18))
             tg.create_task(persistent_storage.set("chat_update_rate", 0.5))
-            tg.create_task(persistent_storage.set("max_messages_per_chat", 100))
-            tg.create_task(persistent_storage.set("window_height", 800))
-            tg.create_task(persistent_storage.set("theme", "System"))
-            tg.create_task(persistent_storage.set("app_id", app_id))
-            tg.create_task(persistent_storage.set("not_first_run", True))
             tg.create_task(persistent_storage.set("color_switcher", False))
+            tg.create_task(persistent_storage.set("max_messages_per_chat", 100))
+            tg.create_task(persistent_storage.set("not_first_run", True))
+            tg.create_task(persistent_storage.set("theme", "System"))
+            tg.create_task(persistent_storage.set("window_width", 500))
+            tg.create_task(persistent_storage.set("window_height", 800))
 
     hasherino = Hasherino(PubSub(), memory_storage, persistent_storage, page)
     await hasherino.run()
