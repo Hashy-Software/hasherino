@@ -51,34 +51,32 @@ class PersistentStorage(AsyncKeyValueStorage):
         File can be the path string to a database file or a TextIOBase if you don't want to use a file,
         such as using a StringIO object for a memory database
         """
-        if type(file) == str:
-            self._file = open(file, "r+" if Path(file).is_file() else "w+")
-        elif isinstance(file, TextIOBase):
-            self._file = file
-        else:
-            raise Exception("Invalid file type")
+        self._file = file
 
         self._r = asyncio.Lock()
         self._g = asyncio.Lock()
         self._b = 0
 
-        try:
-            self._data: dict = json.load(self._file)
-        except json.JSONDecodeError:
-            # File is not empty, database exists but failed to load
-            if self._file.read():
-                raise Exception("Failed to load database.")
+        with self.get_file() as file_object:
+            try:
+                self._data: dict = json.load(file_object)
+            except json.JSONDecodeError:
+                # File is not empty, database exists but failed to load
+                if file_object.read():
+                    raise Exception("Failed to load database.")
 
-            # File is empty so it's a new database, make an empty dict
-            self._data: dict = {}
+                # File is empty so it's a new database, make an empty dict
+                self._data: dict = {}
 
-        assert type(self._data) == dict, "Database file is not a dictionary"
+            assert type(self._data) == dict, "Database file is not a dictionary"
 
-    def __del__(self):
-        """
-        Close file descriptor when object is garbage collected
-        """
-        self._file.close()
+    def get_file(self):
+        if type(self._file) == str:
+            return open(self._file, "r+" if Path(self._file).is_file() else "w+")
+        elif isinstance(self._file, TextIOBase):
+            return self._file
+        else:
+            raise Exception("Invalid file type")
 
     async def _begin_read(self):
         await self._r.acquire()
@@ -121,10 +119,12 @@ class PersistentStorage(AsyncKeyValueStorage):
         await self._begin_write()
 
         logging.debug(f"Persistent storage set {key} to {value}")
+
         self._data[key] = value
-        self._file.truncate(0)
-        self._file.seek(0)
-        json.dump(self._data, self._file, sort_keys=True, indent=4)
+        with self.get_file() as file_object:
+            file_object.truncate(0)
+            file_object.seek(0)
+            json.dump(self._data, file_object, sort_keys=True, indent=4)
 
         await self._end_write()
 
@@ -133,8 +133,9 @@ class PersistentStorage(AsyncKeyValueStorage):
 
         logging.debug(f"Persistent storage removed {key}")
         self._data.pop(key)
-        self._file.truncate(0)
-        self._file.seek(0)
-        json.dump(self._data, self._file, sort_keys=True, indent=4)
+        with self.get_file() as file_object:
+            file_object.truncate(0)
+            file_object.seek(0)
+            json.dump(self._data, file_object, sort_keys=True, indent=4)
 
         await self._end_write()
