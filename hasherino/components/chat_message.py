@@ -41,6 +41,7 @@ class ChatMessage(ft.Row):
         self.page = page
         self.font_size = font_size
         self.spacing = 2
+        self.run_spacing = 0
         self.vertical_alignment = ft.CrossAxisAlignment.CENTER
 
         self.add_control_elements(message)
