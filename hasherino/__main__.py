@@ -30,6 +30,7 @@ class Hasherino:
         self.persistent_storage = persistent_storage
         self.page = page
         self.page.is_ctrl_pressed = False
+        self.message_listener: None | asyncio.Task = None
 
     async def login_click(self, _):
         logging.debug("Clicked login")
@@ -41,7 +42,11 @@ class Hasherino:
         if users:
             websocket: TwitchWebsocket = await self.memory_storage.get("websocket")
 
-            asyncio.ensure_future(
+            if self.message_listener:
+                self.message_listener.cancel()
+                self.message_listener = None
+
+            self.message_listener = asyncio.create_task(
                 websocket.listen_message(
                     message_callback=self.message_received,
                     reconnect_callback=self.status_column.set_reconnecting_status,
@@ -218,7 +223,7 @@ class Hasherino:
         if await self.persistent_storage.get("user_name"):
             websocket: TwitchWebsocket = await self.memory_storage.get("websocket")
 
-            asyncio.ensure_future(
+            self.message_listener = asyncio.create_task(
                 websocket.listen_message(
                     message_callback=self.message_received,
                     reconnect_callback=self.status_column.set_reconnecting_status,
@@ -227,6 +232,7 @@ class Hasherino:
                     join_channel=await self.persistent_storage.get("channel"),
                 )
             )
+
             await self.memory_storage.set(
                 "ttv_badges",
                 await helix.get_global_badges(
