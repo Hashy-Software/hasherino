@@ -445,7 +445,9 @@ class NewMessageRow(ft.Row):
             )
         )
 
-        self.new_message.value = ""
+        if not self.page.is_ctrl_pressed:
+            self.new_message.value = ""
+
         await self.new_message.focus_async()
         await self.page.update_async()
 
@@ -585,6 +587,7 @@ class Hasherino:
         self.memory_storage = memory_storage
         self.persistent_storage = persistent_storage
         self.page = page
+        self.page.is_ctrl_pressed = False
 
     async def login_click(self, _):
         logging.debug("Clicked login")
@@ -721,9 +724,13 @@ class Hasherino:
                     self.persistent_storage.set("window_width", self.page.window_width)
                 )
 
+    async def on_kb_event(self, e: ft.KeyboardEvent):
+        self.page.is_ctrl_pressed = e.ctrl
+
     async def run(self):
         self.page.window_width = await self.persistent_storage.get("window_width")
         self.page.window_height = await self.persistent_storage.get("window_height")
+        self.page.on_keyboard_event = self.on_kb_event
 
         match await self.persistent_storage.get("theme"):
             case "System":
