@@ -1,119 +1,20 @@
 import asyncio
 import logging
-from abc import ABC
-from enum import Enum, auto
-from math import isclose
 from pathlib import Path
 from random import choice
-from typing import Any, Awaitable, Coroutine
+from typing import Awaitable, Coroutine
 
 import flet as ft
 
 from hasherino import helix, user_auth
-from hasherino.components import StatusColumn
+from hasherino.components import ChatContainer, StatusColumn
 from hasherino.hasherino_dataclasses import Emote, EmoteSource, HasherinoUser, Message
 from hasherino.helix import NormalUserColor
+from hasherino.pubsub import PubSub
 from hasherino.storage import AsyncKeyValueStorage, MemoryOnlyStorage, PersistentStorage
 from hasherino.twitch_websocket import Command, ParsedMessage, TwitchWebsocket
 
 _LOG_PATH = Path("hasherino.log")
-
-
-class PubSub:
-    def __init__(self) -> None:
-        self.funcs: set[Awaitable] = set()
-
-    async def subscribe(self, func: Awaitable):
-        self.funcs.add(func)
-
-    async def subscribe_all(self, funcs: list[Awaitable]):
-        self.funcs.update(funcs)
-
-    async def send(self, message: Any):
-        for func in self.funcs:
-            await func(message)
-
-
-class FontSizeSubscriber(ABC):
-    async def on_font_size_changed(self, new_font_size: int):
-        ...
-
-
-class ChatText(ft.Text, FontSizeSubscriber):
-    def __init__(self, text: str, color: str, size: int, weight=""):
-        super().__init__(text, size=size, weight=weight, color=color, selectable=True)
-
-    async def on_font_size_changed(self, new_font_size: int):
-        self.size = new_font_size
-
-
-class ChatBadge(ft.Image, FontSizeSubscriber):
-    def __init__(self, src: str, height: int):
-        super().__init__(src=src, height=height)
-
-    async def on_font_size_changed(self, new_font_size: int):
-        self.height = new_font_size
-
-
-class ChatEmote(ft.Image, FontSizeSubscriber):
-    async def on_font_size_changed(self, new_font_size: int):
-        self.height = new_font_size * 2
-
-
-class ChatMessage(ft.Row):
-    def __init__(self, message: Message, page: ft.Page, font_size: int):
-        super().__init__()
-        self.vertical_alignment = "start"
-        self.wrap = True
-        self.width = page.width
-        self.page = page
-        self.font_size = font_size
-        self.spacing = 2
-        self.vertical_alignment = ft.CrossAxisAlignment.CENTER
-
-        self.add_control_elements(message)
-
-    def add_control_elements(self, message):
-        self.controls = [
-            ChatBadge(badge.url, self.font_size) for badge in message.user.badges
-        ]
-
-        self.controls.append(
-            ChatText(
-                f"{message.user.name}: ",
-                message.user.chat_color,
-                self.font_size,
-                weight="bold",
-            )
-        )
-
-        for element in message.elements:
-            if type(element) == str:
-                theme_text_color = (
-                    ft.colors.WHITE
-                    if self.page.platform_brightness == ft.ThemeMode.DARK
-                    else ft.colors.BLACK
-                )
-                color = message.user.chat_color if message.me else theme_text_color
-                result = ChatText(element, color, self.font_size)
-            elif type(element) == Emote:
-                result = ChatEmote(
-                    src=element.get_url(),
-                    height=self.font_size * 2,
-                )
-            else:
-                raise TypeError
-
-            self.controls.append(result)
-
-    async def subscribe_to_font_size_change(self, pubsub: PubSub):
-        await pubsub.subscribe_all(
-            [
-                control.on_font_size_changed
-                for control in self.controls
-                if isinstance(control, FontSizeSubscriber)
-            ]
-        )
 
 
 class SettingsView(ft.View):
@@ -489,91 +390,6 @@ class NewMessageRow(ft.Row):
 class SelectChatButton(ft.IconButton):
     def __init__(self, select_chat_click: Awaitable):
         super().__init__(icon=ft.icons.CHAT, on_click=select_chat_click)
-
-
-class ChatContainer(ft.Container):
-    class _UiUpdateType(Enum):
-        NO_UPDATE = (auto(),)
-        SCROLL = (auto(),)
-        PAGE = (auto(),)
-
-    def __init__(self, storage: AsyncKeyValueStorage, font_size_pubsub: PubSub):
-        self.storage = storage
-        self.font_size_pubsub = font_size_pubsub
-        self.is_chat_scrolled_down = False
-        self.chat = ft.Column(
-            expand=True,
-            spacing=0,
-            run_spacing=0,
-            scroll=ft.ScrollMode.ALWAYS,
-            auto_scroll=False,
-            on_scroll=self.on_scroll,
-        )
-        super().__init__(
-            content=self.chat,
-            border=ft.border.all(1, ft.colors.OUTLINE),
-            border_radius=5,
-            padding=10,
-            expand=True,
-        )
-        self.scheduled_ui_update: self._UiUpdateType = self._UiUpdateType.NO_UPDATE
-        asyncio.ensure_future(self.update_ui())
-
-    async def update_ui(self):
-        while True:
-            match self.scheduled_ui_update:
-                case self._UiUpdateType.SCROLL:
-                    await self.chat.scroll_to_async(offset=-1, duration=10)
-                case self._UiUpdateType.PAGE:
-                    await self.page.update_async()
-                case self._UiUpdateType.NO_UPDATE | _:
-                    pass
-
-            self.scheduled_ui_update = self._UiUpdateType.NO_UPDATE
-
-            await asyncio.sleep(float(await self.storage.get("chat_update_rate")))
-
-    async def on_scroll(self, event: ft.OnScrollEvent):
-        self.is_chat_scrolled_down = isclose(
-            event.pixels, event.max_scroll_extent, rel_tol=0.01
-        )
-
-    async def on_message(self, message: Message):
-        if message.message_type == "chat_message":
-            m = ChatMessage(
-                message, self.page, await self.storage.get("chat_font_size")
-            )
-            await m.subscribe_to_font_size_change(self.font_size_pubsub)
-        elif message.message_type == "login_message":
-            theme_text_color = (
-                ft.colors.WHITE
-                if self.page.platform_brightness == ft.ThemeMode.DARK
-                else ft.colors.BLACK
-            )
-            m = ft.Text(
-                message.elements[0],
-                italic=True,
-                color=theme_text_color,
-                size=await self.storage.get("chat_font_size"),
-            )
-
-        self.chat.controls.append(m)
-
-        n_messages_to_remove = len(self.chat.controls) - await self.storage.get(
-            "max_messages_per_chat"
-        )
-        if n_messages_to_remove > 0:
-            del self.chat.controls[:n_messages_to_remove]
-            logging.debug(
-                f"Chat has {len(self.chat.controls)} lines in it, removed {n_messages_to_remove}"
-            )
-
-        if self.is_chat_scrolled_down:
-            self.scheduled_ui_update = self._UiUpdateType.SCROLL
-        elif (
-            self.scheduled_ui_update != self._UiUpdateType.SCROLL
-        ):  # Scroll already updates
-            self.scheduled_ui_update = self._UiUpdateType.PAGE
 
 
 class Hasherino:
