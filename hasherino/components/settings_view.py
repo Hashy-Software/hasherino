@@ -60,36 +60,52 @@ class SettingsView(ft.View):
             content=ft.Column(
                 controls=[
                     ft.Text(),
-                    ft.Text(
-                        "Chat font size:",
-                        size=16,
-                    ),
-                    ft.Slider(
-                        value=await self.storage.get("chat_font_size"),
-                        min=10,
-                        max=50,
-                        divisions=40,
-                        label="{value}",
-                        width=500,
-                        on_change_end=self._font_size_change,
-                    ),
-                    ft.Text(),
-                    ft.Text("Theme"),
-                    ft.Dropdown(
-                        value=await self.storage.get("theme"),
-                        options=[
-                            ft.dropdown.Option("System"),
-                            ft.dropdown.Option("Dark mode"),
-                            ft.dropdown.Option("Light mode"),
+                    ft.Row(
+                        controls=[
+                            ft.Text(
+                                "Chat font size",
+                                size=16,
+                            ),
+                            ft.Slider(
+                                value=await self.storage.get("chat_font_size"),
+                                min=10,
+                                max=50,
+                                divisions=40,
+                                label="{value}",
+                                on_change_end=self._font_size_change,
+                                expand=True,
+                            ),
                         ],
-                        on_change=self._theme_select,
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
                     ft.Text(),
-                    ft.Checkbox(
-                        label="Enable color switcher",
-                        value=await self.storage.get("color_switcher"),
-                        label_position=ft.LabelPosition.LEFT,
-                        on_change=self._on_color_switcher_click,
+                    ft.Row(
+                        controls=[
+                            ft.Text("Theme", size=16),
+                            ft.Dropdown(
+                                value=await self.storage.get("theme"),
+                                options=[
+                                    ft.dropdown.Option("System"),
+                                    ft.dropdown.Option("Dark mode"),
+                                    ft.dropdown.Option("Light mode"),
+                                ],
+                                width=200,
+                                on_change=self._theme_select,
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    ),
+                    ft.Text(),
+                    ft.Row(
+                        controls=[
+                            ft.Text("Enable color switcher", size=16),
+                            ft.Checkbox(
+                                value=await self.storage.get("color_switcher"),
+                                label_position=ft.LabelPosition.LEFT,
+                                on_change=self._on_color_switcher_click,
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
                 ],
             ),
