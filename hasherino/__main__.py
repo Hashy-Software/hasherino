@@ -53,6 +53,7 @@ class Hasherino:
                     reconnect_callback=self.status_column.set_reconnecting_status,
                     token=token,
                     username=users[0].login,
+                    join_channel=await self.persistent_storage.get("channel"),
                 )
             )
 
