@@ -10,6 +10,7 @@ from hasherino.components import (
     NewMessageRow,
     SettingsView,
     StatusColumn,
+    Tabs,
 )
 from hasherino.hasherino_dataclasses import HasherinoUser, Message
 from hasherino.pubsub import PubSub
@@ -203,6 +204,8 @@ class Hasherino:
             self.chat_message_pubsub,
             self.status_column.set_reconnecting_status,
         )
+        self.tabs = Tabs()
+        await self.tabs.add_tab("hash_table")
 
         await self.chat_message_pubsub.subscribe(chat_container.on_message)
 
@@ -210,10 +213,22 @@ class Hasherino:
         await self.page.add_async(
             ft.Row(
                 [
-                    ft.IconButton(icon=ft.icons.LOGIN, on_click=self.login_click),
-                    ft.IconButton(icon=ft.icons.CHAT, on_click=self.select_chat_click),
-                    ft.IconButton(icon=ft.icons.SETTINGS, on_click=self.settings_click),
-                ]
+                    self.tabs,
+                    ft.Row(
+                        controls=[
+                            ft.IconButton(
+                                icon=ft.icons.LOGIN, on_click=self.login_click
+                            ),
+                            ft.IconButton(
+                                icon=ft.icons.CHAT, on_click=self.select_chat_click
+                            ),
+                            ft.IconButton(
+                                icon=ft.icons.SETTINGS, on_click=self.settings_click
+                            ),
+                        ]
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
             chat_container,
             self.new_message_row,
