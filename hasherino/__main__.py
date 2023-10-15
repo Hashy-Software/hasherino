@@ -148,6 +148,7 @@ class Hasherino:
 
             logging.info(f"Joining channel {channel.value}")
             await websocket.join_channel(channel.value)
+            await self.tabs.add_tab(channel.value)
             await self.persistent_storage.set("channel", channel.value)
             await self.page.update_async()
 
@@ -204,8 +205,7 @@ class Hasherino:
             self.chat_message_pubsub,
             self.status_column.set_reconnecting_status,
         )
-        self.tabs = Tabs()
-        await self.tabs.add_tab("hash_table")
+        self.tabs = Tabs(self.memory_storage, self.persistent_storage)
 
         await self.chat_message_pubsub.subscribe(chat_container.on_message)
 
@@ -235,24 +235,30 @@ class Hasherino:
             self.status_column,
         )
 
-        if await self.persistent_storage.get("user_name"):
+        if user_name := await self.persistent_storage.get("user_name"):
             websocket: TwitchWebsocket = await self.memory_storage.get("websocket")
+
+            channel = await self.persistent_storage.get("channel")
+            token = await self.persistent_storage.get("token")
 
             self.message_listener = asyncio.create_task(
                 websocket.listen_message(
                     message_callback=self.message_received,
                     reconnect_callback=self.status_column.set_reconnecting_status,
-                    token=await self.persistent_storage.get("token"),
-                    username=await self.persistent_storage.get("user_name"),
-                    join_channel=await self.persistent_storage.get("channel"),
+                    token=token,
+                    username=user_name,
+                    join_channel=channel,
                 )
             )
+
+            if channel:
+                await self.tabs.add_tab(channel)
 
             await self.memory_storage.set(
                 "ttv_badges",
                 await helix.get_global_badges(
                     await self.persistent_storage.get("app_id"),
-                    await self.persistent_storage.get("token"),
+                    token,
                 ),
             )
 
