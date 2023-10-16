@@ -131,13 +131,12 @@ class Hasherino:
                 pass
 
     async def select_chat_click(self, _):
-        channel = ft.TextField(label="Channel")
+        channel = ft.TextField(label="Channel", autofocus=True)
         logging.debug("Clicked on select chat")
 
         async def join_chat_click(_):
             websocket: TwitchWebsocket = await self.memory_storage.get("websocket")
-            self.page.dialog.open = False
-            await self.page.update_async()
+            channel.error_text = ""
 
             if await self.persistent_storage.get("channel"):
                 logging.info(
@@ -148,9 +147,19 @@ class Hasherino:
                 )
 
             logging.info(f"Joining channel {channel.value}")
-            await websocket.join_channel(channel.value)
+
+            try:
+                await websocket.join_channel(channel.value)
+            except Exception:
+                channel.error_text = f"Not logged in"
+                logging.error(channel.error_text)
+                await self.page.update_async()
+                return
+
             await self.tabs.add_tab(channel.value)
             await self.persistent_storage.set("channel", channel.value)
+            self.page.dialog.open = False
+
             await self.page.update_async()
 
         channel.on_submit = join_chat_click

@@ -5,3 +5,4 @@ Changes:
 * Don't duplicate connection when clicking login while already being logged in(closes #30)
 * Fix vertical spacing between wraped lines in chat(closes #36)
 * Rejoin channel when swapping accounts
+* Give an error message when trying to join channels without logging in and autofocus on channel name field
