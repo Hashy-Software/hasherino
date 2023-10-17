@@ -2,7 +2,6 @@ import enum
 import logging
 import ssl
 from dataclasses import dataclass
-from json import dumps
 from typing import Iterable
 
 import certifi

@@ -203,7 +203,7 @@ class Hasherino:
 
         self.page.on_resize = self.on_resize
         self.page.horizontal_alignment = "stretch"
-        self.page.title = "hasherino"
+        self.page.title = "Hasherino"
 
         self.chat_message_pubsub = PubSub()
         self.page.dialog = AccountDialog(self.persistent_storage)

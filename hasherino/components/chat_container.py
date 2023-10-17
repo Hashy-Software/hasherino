@@ -65,15 +65,9 @@ class ChatContainer(ft.Container):
             )
             await m.subscribe_to_font_size_change(self.font_size_pubsub)
         elif message.message_type == "login_message":
-            theme_text_color = (
-                ft.colors.WHITE
-                if self.page.platform_brightness == ft.ThemeMode.DARK
-                else ft.colors.BLACK
-            )
             m = ft.Text(
                 message.elements[0],
                 italic=True,
-                color=theme_text_color,
                 size=await self.storage.get("chat_font_size"),
             )
 

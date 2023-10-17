@@ -62,12 +62,7 @@ class ChatMessage(ft.Row):
 
         for element in message.elements:
             if type(element) == str:
-                theme_text_color = (
-                    ft.colors.WHITE
-                    if self.page.platform_brightness == ft.ThemeMode.DARK
-                    else ft.colors.BLACK
-                )
-                color = message.user.chat_color if message.me else theme_text_color
+                color = message.user.chat_color if message.me else ""
                 result = ChatText(element, color, self.font_size)
             elif type(element) == Emote:
                 result = ChatEmote(
