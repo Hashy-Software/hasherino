@@ -1,6 +1,7 @@
 # Hasherino
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/hasherino)
 <img alt="PyPI - Version" src="https://img.shields.io/pypi/v/hasherino">
+<img alt="Python Version from PEP 621 TOML" src="https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FHashy-Software%2Fhasherino%2Fmain%2Fpyproject.toml">
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 
 Hasherino is a (pre-alpha) twitch chat client with some extra features.
