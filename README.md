@@ -5,6 +5,9 @@
 
 Hasherino is a (pre-alpha) twitch chat client with some extra features.
 
+## Install
+Check out [releases](https://github.com/Hashy-Software/hasherino/releases) for the latest Windows and Linux builds or install from [PyPI](https://pypi.org/project/hasherino/). 
+
 ## Features 
 
 * [X] Auto color cycling
