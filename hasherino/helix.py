@@ -207,6 +207,12 @@ async def get_emote_sets(app_id: str, oauth_token: str, emote_set_ids: list[str]
     """
     Raises Exception for invalid status code
     """
+    if not emote_set_ids:
+        return []
+
+    if len(emote_set_ids) > 25:
+        raise Exception("You may specify a maximum of 25 IDs.")
+
     ssl_context = ssl.create_default_context(cafile=certifi.where())
     conn = TCPConnector(ssl=ssl_context)
 

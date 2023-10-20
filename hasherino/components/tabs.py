@@ -9,7 +9,6 @@ from hasherino.storage import AsyncKeyValueStorage
 from hasherino.twitch_websocket import TwitchWebsocket
 
 
-# TODO: save tab channel IDs instead of username
 class HasherinoTab(ft.Tab):
     def __init__(self, channel: str, persistent_storage: AsyncKeyValueStorage):
         super().__init__(tab_content=ft.Row(controls=[ft.Text(channel)]))

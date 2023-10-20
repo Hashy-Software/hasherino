@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections import defaultdict
 
 import flet as ft
 
@@ -33,6 +34,7 @@ class Hasherino:
         self.page = page
         self.page.is_ctrl_pressed = False
         self.message_listener: None | asyncio.Task = None
+        self.emote_set_cache: dict[str, list[Emote]] = dict()
 
     async def login_click(self, _):
         logging.debug("Clicked login")
@@ -106,38 +108,26 @@ class Hasherino:
                             )
                         )
 
-                        app_id_task = tg.create_task(
-                            self.persistent_storage.get("app_id")
-                        )
-                        token_task = tg.create_task(
-                            self.persistent_storage.get("token")
-                        )
+                        if not await self.memory_storage.get("ttv_emote_sets"):
+                            emotes: dict[str, Emote] = dict()
 
-                        emote_sets_task = tg.create_task(
-                            helix.get_emote_sets(
-                                await app_id_task,
-                                await token_task,
+                            for emote_obj in await helix.get_emote_sets(
+                                await self.persistent_storage.get("app_id"),
+                                await self.persistent_storage.get("token"),
                                 message.get_emote_sets(),
-                            )
-                        )
+                            ):
+                                emotes[emote_obj["name"]] = Emote(
+                                    name=emote_obj["name"],
+                                    id=emote_obj["id"],
+                                    url=f"https://static-cdn.jtvnw.net/emoticons/v2/{emote_obj['id']}/default/dark/2.0",
+                                )
 
-                        emote_name_to_obj = {
-                            emote_obj["name"]: Emote(
-                                name=emote_obj["name"],
-                                id=emote_obj["id"],
-                                url=emote_obj["images"]["url_2x"],
+                            tg.create_task(
+                                self.memory_storage.set("ttv_emote_sets", emotes)
                             )
-                            for emote_obj in await emote_sets_task
-                        }
-
-                        tg.create_task(
-                            self.memory_storage.set("ttv_emote_sets", emote_name_to_obj)
-                        )
 
             case Command.PRIVMSG:
                 author: str = message.get_author_displayname()
-
-                emote_map = {}
 
                 await self.chat_message_pubsub.send(
                     Message(
@@ -148,10 +138,7 @@ class Hasherino:
                             ),
                             chat_color=message.get_author_chat_color(),
                         ),
-                        elements=[
-                            emote_map[element] if element in emote_map else element
-                            for element in message.get_message_text().split(" ")
-                        ],
+                        elements=message.get_message_elements(),
                         message_type="chat_message",
                         me=message.is_me(),
                     )
