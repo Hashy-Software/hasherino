@@ -94,23 +94,8 @@ class NewMessageRow(ft.Row):
             await self.update_async()
             return
 
-        emote_map = {
-            "catFight": Emote(
-                id="643d8003f6c0390df3367b04",
-                name="catFight",
-                source=EmoteSource.SEVENTV,
-            ),
-            "Slapahomie": Emote(
-                id="60f22ed831ba6ae62262f234",
-                name="Slapahomie",
-                source=EmoteSource.SEVENTV,
-            ),
-            "hola": Emote(
-                id="9b76f5f0f02d42738d337082c0872b2c",
-                name="hola",
-                source=EmoteSource.TWITCH,
-            ),
-        }
+        emote_map: dict[str, Emote] = await self.memory_storage.get("ttv_emote_sets")
+
         try:
             async with asyncio.timeout(2):
                 await websocket.send_message(

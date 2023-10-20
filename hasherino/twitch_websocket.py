@@ -125,6 +125,14 @@ class ParsedMessage:
 
         return result
 
+    def get_emote_sets(self) -> list[str]:
+        result = []
+
+        if self.tags and self.tags.get("emote-sets"):
+            result = [tag for tag in self.tags["emote-sets"].split(",")]
+
+        return result
+
     def __str__(self) -> str:
         return str(self.__dict__)
 
@@ -311,6 +319,9 @@ class ParsedMessage:
 
                 case "display-name":
                     dict_parsed_tags["display-name"] = tag_value
+
+                case "emote-sets":
+                    dict_parsed_tags["emote-sets"] = tag_value
 
                 case _:
                     pass

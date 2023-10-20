@@ -1,3 +1,4 @@
+import asyncio
 import enum
 import logging
 import ssl
@@ -171,5 +172,62 @@ async def get_global_badges(
 
             if response.status != 200:
                 raise Exception("Unable to get global badges")
+
+            return json_result["data"]
+
+
+async def get_channel_emotes(app_id: str, oauth_token: str, broadcaster_id: str):
+    """
+    Raises Exception for invalid status code
+    """
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    conn = TCPConnector(ssl=ssl_context)
+
+    async with ClientSession(connector=conn) as session:
+        async with session.get(
+            f"{_BASE_URL}chat/emotes",
+            headers={
+                "Authorization": f"Bearer {oauth_token}",
+                "Client-Id": app_id,
+            },
+            params=f"broadcaster_id={broadcaster_id}",
+        ) as response:
+            json_result = await response.json()
+            logging.debug(f"Helix get channel emotes response: {json_result}")
+
+            if not response.ok:
+                raise Exception(
+                    f"Unable to get channel emotes for {broadcaster_id} with response {json_result}"
+                )
+
+            return json_result["data"]
+
+
+async def get_emote_sets(app_id: str, oauth_token: str, emote_set_ids: list[str]):
+    """
+    Raises Exception for invalid status code
+    """
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    conn = TCPConnector(ssl=ssl_context)
+
+    ids = "&".join(f"emote_set_id={user_id}" for user_id in emote_set_ids)
+    logging.debug(f"Generated params for emote sets query: {ids}")
+
+    async with ClientSession(connector=conn) as session:
+        async with session.get(
+            f"{_BASE_URL}chat/emotes/set",
+            headers={
+                "Authorization": f"Bearer {oauth_token}",
+                "Client-Id": app_id,
+            },
+            params=ids,
+        ) as response:
+            json_result = await response.json()
+            logging.debug(f"Helix get channel emotes response: {json_result}")
+
+            if not response.ok:
+                raise Exception(
+                    f"Unable to get emote sets {','.join(emote_set_ids)} with response {json_result}"
+                )
 
             return json_result["data"]

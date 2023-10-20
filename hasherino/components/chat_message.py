@@ -2,7 +2,7 @@ from abc import ABC
 
 import flet as ft
 
-from hasherino.hasherino_dataclasses import Message
+from hasherino.hasherino_dataclasses import Emote, Message
 from hasherino.pubsub import PubSub
 
 
@@ -66,7 +66,7 @@ class ChatMessage(ft.Row):
                 result = ChatText(element, color, self.font_size)
             elif type(element) == Emote:
                 result = ChatEmote(
-                    src=element.get_url(),
+                    src=element.url,
                     height=self.font_size * 2,
                 )
             else:

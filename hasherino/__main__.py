@@ -12,7 +12,8 @@ from hasherino.components import (
     StatusColumn,
     Tabs,
 )
-from hasherino.hasherino_dataclasses import HasherinoUser, Message
+from hasherino.components.chat_message import ChatEmote
+from hasherino.hasherino_dataclasses import Emote, HasherinoUser, Message
 from hasherino.pubsub import PubSub
 from hasherino.storage import AsyncKeyValueStorage, MemoryOnlyStorage, PersistentStorage
 from hasherino.twitch_websocket import Command, ParsedMessage, TwitchWebsocket
@@ -84,7 +85,7 @@ class Hasherino:
         logging.debug(f"Received message with command {message.get_command()}")
 
         match message.get_command():
-            case Command.USERSTATE | Command.GLOBALUSERSTATE:
+            case Command.USERSTATE:
                 if (
                     message.get_author_displayname().lower()
                     == (await self.persistent_storage.get("user_name")).lower()
@@ -103,6 +104,34 @@ class Hasherino:
                             self.memory_storage.set(
                                 "user_color", message.get_author_chat_color()
                             )
+                        )
+
+                        app_id_task = tg.create_task(
+                            self.persistent_storage.get("app_id")
+                        )
+                        token_task = tg.create_task(
+                            self.persistent_storage.get("token")
+                        )
+
+                        emote_sets_task = tg.create_task(
+                            helix.get_emote_sets(
+                                await app_id_task,
+                                await token_task,
+                                message.get_emote_sets(),
+                            )
+                        )
+
+                        emote_name_to_obj = {
+                            emote_obj["name"]: Emote(
+                                name=emote_obj["name"],
+                                id=emote_obj["id"],
+                                url=emote_obj["images"]["url_2x"],
+                            )
+                            for emote_obj in await emote_sets_task
+                        }
+
+                        tg.create_task(
+                            self.memory_storage.set("ttv_emote_sets", emote_name_to_obj)
                         )
 
             case Command.PRIVMSG:
