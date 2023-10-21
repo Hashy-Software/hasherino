@@ -129,7 +129,7 @@ class Hasherino:
             case Command.PRIVMSG:
                 author: str = message.get_author_displayname()
 
-                await self.chat_message_pubsub.send(
+                await self.chat_container_on_msg(
                     Message(
                         HasherinoUser(
                             name=author,
@@ -221,19 +221,18 @@ class Hasherino:
         self.page.horizontal_alignment = "stretch"
         self.page.title = "Hasherino"
 
-        self.chat_message_pubsub = PubSub()
         self.page.dialog = AccountDialog(self.persistent_storage)
         self.status_column = StatusColumn(self.memory_storage, self.persistent_storage)
         chat_container = ChatContainer(self.persistent_storage, self.font_size_pubsub)
         self.new_message_row = NewMessageRow(
             self.memory_storage,
             self.persistent_storage,
-            self.chat_message_pubsub,
+            chat_container.on_message,
             self.status_column.set_reconnecting_status,
         )
         self.tabs = Tabs(self.memory_storage, self.persistent_storage)
 
-        await self.chat_message_pubsub.subscribe(chat_container.on_message)
+        self.chat_container_on_msg = chat_container.on_message
 
         # Add everything to the page
         await self.page.add_async(

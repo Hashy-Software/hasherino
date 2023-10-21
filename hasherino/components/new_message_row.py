@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from random import choice
-from typing import Coroutine
+from typing import Awaitable
 
 import flet as ft
 
@@ -17,12 +17,12 @@ class NewMessageRow(ft.Row):
         self,
         memory_storage: AsyncKeyValueStorage,
         persistent_storage: AsyncKeyValueStorage,
-        chat_message_pubsub: PubSub,
-        reconnect_callback: Coroutine,
+        chat_container_on_message: Awaitable,
+        reconnect_callback: Awaitable,
     ):
         self.memory_storage = memory_storage
         self.persistent_storage = persistent_storage
-        self.chat_message_pubsub = chat_message_pubsub
+        self.chat_container_on_message = chat_container_on_message
         self.reconnect_callback = reconnect_callback
 
         # A new message entry form
@@ -107,7 +107,7 @@ class NewMessageRow(ft.Row):
             await self.update_async()
             return
 
-        await self.chat_message_pubsub.send(
+        await self.chat_container_on_message(
             Message(
                 HasherinoUser(
                     name=await self.persistent_storage.get("user_name"),
