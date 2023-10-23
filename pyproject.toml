@@ -15,11 +15,11 @@ classifiers = [
 ]
 readme = "README.md"
 dependencies = [
-    "aiohttp >= 3.8.5",
-    "websockets >= 11.0.3",
-    "keyring >= 24.2.0",
-    "flet >= 0.10.3",
-    "certifi >= 2023.7.22",
+    "aiohttp == 3.8.5",
+    "websockets == 11.0.3",
+    "keyring == 24.2.0",
+    "flet == 0.10.3",
+    "certifi == 2023.7.22",
 ]
 
 [tool.isort]
@@ -37,6 +37,6 @@ hasherino = "hasherino.__main__:run_hasherino"
 
 [project.optional-dependencies]
 dev = [
-    "pyinstaller >= 6.0.0",
+    "pyinstaller == 6.0.0",
 ]
 
