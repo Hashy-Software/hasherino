@@ -5,10 +5,9 @@ from typing import Awaitable
 
 import flet as ft
 
-from hasherino import helix
-from hasherino.hasherino_dataclasses import Emote, EmoteSource, HasherinoUser, Message
-from hasherino.helix import NormalUserColor
-from hasherino.pubsub import PubSub
+from hasherino.api import helix
+from hasherino.api.helix import NormalUserColor
+from hasherino.hasherino_dataclasses import Emote, HasherinoUser, Message
 from hasherino.storage import AsyncKeyValueStorage
 
 

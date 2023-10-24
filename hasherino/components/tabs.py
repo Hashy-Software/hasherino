@@ -3,8 +3,8 @@ import logging
 
 import flet as ft
 
-from hasherino import helix
-from hasherino.seven_tv import SevenTV
+from hasherino.api import helix
+from hasherino.api.seven_tv import SevenTV
 from hasherino.storage import AsyncKeyValueStorage
 from hasherino.twitch_websocket import TwitchWebsocket
 

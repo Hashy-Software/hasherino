@@ -4,7 +4,8 @@ from collections import defaultdict
 
 import flet as ft
 
-from hasherino import helix, user_auth
+from hasherino import user_auth
+from hasherino.api import helix
 from hasherino.components import (
     AccountDialog,
     ChatContainer,
@@ -13,7 +14,6 @@ from hasherino.components import (
     StatusColumn,
     Tabs,
 )
-from hasherino.components.chat_message import ChatEmote
 from hasherino.hasherino_dataclasses import Emote, HasherinoUser, Message
 from hasherino.pubsub import PubSub
 from hasherino.storage import AsyncKeyValueStorage, MemoryOnlyStorage, PersistentStorage
