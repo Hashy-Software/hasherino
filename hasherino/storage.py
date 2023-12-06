@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import sys
 from abc import ABC
 from io import TextIOBase
 from pathlib import Path
@@ -8,6 +9,24 @@ from typing import Any
 
 import keyring
 from flet import Page
+
+
+def get_default_os_settings_path() -> Path:
+    """
+    Returns the default path where hasherino files are stored according on the user's OS.
+
+    Windows: %APPDATA%/hasherino
+    Linux: $HOME/.local/share/hasherino
+    Others: same folder the app is running from
+    """
+    home = Path.home()
+
+    if sys.platform.startswith("win32"):
+        return home / "AppData" / "hasherino"
+    elif sys.platform.startswith("linux"):
+        return home / ".local" / "share" / "hasherino"
+    else:
+        return Path.cwd()
 
 
 class AsyncKeyValueStorage(ABC):
@@ -48,7 +67,7 @@ class PersistentStorage(AsyncKeyValueStorage):
 
     def __init__(self, file: TextIOBase | str = "db.json") -> None:
         """
-        File can be the path string to a database file or a TextIOBase if you don't want to use a file,
+        File can be the file name string to a database file or a TextIOBase if you don't want to use a file,
         such as using a StringIO object for a memory database
         """
         self._file = file
@@ -72,7 +91,8 @@ class PersistentStorage(AsyncKeyValueStorage):
 
     def get_file(self):
         if type(self._file) == str:
-            return open(self._file, "r+" if Path(self._file).is_file() else "w+")
+            fpath = get_default_os_settings_path() / self._file
+            return open(fpath, "r+" if fpath.is_file() else "w+")
         elif isinstance(self._file, TextIOBase):
             return self._file
         else:

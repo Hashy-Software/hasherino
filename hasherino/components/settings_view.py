@@ -4,9 +4,9 @@ from pathlib import Path
 import flet as ft
 
 from hasherino.pubsub import PubSub
-from hasherino.storage import AsyncKeyValueStorage
+from hasherino.storage import AsyncKeyValueStorage, get_default_os_settings_path
 
-_LOG_PATH = Path("hasherino.log")
+LOG_PATH = get_default_os_settings_path() / "hasherino.log"
 
 
 class SettingsView(ft.View):
@@ -122,7 +122,7 @@ class SettingsView(ft.View):
                     ft.Row(
                         controls=[
                             ft.TextField(
-                                value=str(_LOG_PATH.absolute()),
+                                value=str(LOG_PATH.absolute()),
                                 read_only=True,
                                 expand=True,
                             ),
@@ -153,7 +153,7 @@ class SettingsView(ft.View):
         await self.page.update_async()
 
     async def _log_path_copy_click(self, _):
-        await self.page.set_clipboard_async(str(_LOG_PATH.absolute()))
+        await self.page.set_clipboard_async(str(LOG_PATH.absolute()))
 
     async def _max_messages_change(self, e):
         try:

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from collections import defaultdict
 
 import flet as ft
 
@@ -14,9 +13,15 @@ from hasherino.components import (
     StatusColumn,
     Tabs,
 )
+from hasherino.components.settings_view import LOG_PATH
 from hasherino.hasherino_dataclasses import Emote, HasherinoUser, Message
 from hasherino.pubsub import PubSub
-from hasherino.storage import AsyncKeyValueStorage, MemoryOnlyStorage, PersistentStorage
+from hasherino.storage import (
+    AsyncKeyValueStorage,
+    MemoryOnlyStorage,
+    PersistentStorage,
+    get_default_os_settings_path,
+)
 from hasherino.twitch_websocket import Command, ParsedMessage, TwitchWebsocket
 
 
@@ -289,13 +294,19 @@ class Hasherino:
 
 
 async def main(page: ft.Page):
+    # Make settings folder for user's OS if it doesn't exist
+    if not get_default_os_settings_path().exists():
+        # Uses print cause logging isn't set up at this point
+        print(f"Making settings directory on {get_default_os_settings_path()}")
+        get_default_os_settings_path().mkdir(parents=True)
+
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s | %(name)s | %(filename)s | %(levelname)s | %(funcName)s | %(lineno)d | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
         handlers=[
             logging.StreamHandler(),  # Outputs logs to the console
-            logging.FileHandler("hasherino.log", mode="w"),
+            logging.FileHandler(LOG_PATH, mode="w"),
         ],
     )
 
