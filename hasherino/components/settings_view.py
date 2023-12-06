@@ -98,7 +98,7 @@ class SettingsView(ft.View):
                     ft.Text(),
                     ft.Row(
                         controls=[
-                            ft.Text("Enable color switcher", size=16),
+                            ft.Text("Chat color cycling", size=16),
                             ft.Checkbox(
                                 value=await self.storage.get("color_switcher"),
                                 label_position=ft.LabelPosition.LEFT,
