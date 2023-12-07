@@ -17,8 +17,14 @@ class ChatContainer(ft.Container):
         SCROLL = (auto(),)
         PAGE = (auto(),)
 
-    def __init__(self, storage: AsyncKeyValueStorage, font_size_pubsub: PubSub):
-        self.storage = storage
+    def __init__(
+        self,
+        persistent_storage: AsyncKeyValueStorage,
+        memory_storage: AsyncKeyValueStorage,
+        font_size_pubsub: PubSub,
+    ):
+        self.persistent_storage = persistent_storage
+        self.memory_storage = memory_storage
         self.font_size_pubsub = font_size_pubsub
         self.is_chat_scrolled_down = False
         self.chat = ft.Column(
@@ -51,31 +57,48 @@ class ChatContainer(ft.Container):
 
             self.scheduled_ui_update = self._UiUpdateType.NO_UPDATE
 
-            await asyncio.sleep(float(await self.storage.get("chat_update_rate")))
+            await asyncio.sleep(
+                float(await self.persistent_storage.get("chat_update_rate"))
+            )
 
     async def on_scroll(self, event: ft.OnScrollEvent):
         self.is_chat_scrolled_down = isclose(
             event.pixels, event.max_scroll_extent, rel_tol=0.01
         )
 
+    async def add_author_to_user_list(self, author: str):
+        tab_name = await self.memory_storage.get("channel")
+
+        # Get existing list from memory or initialize a new one
+        if user_list := await self.memory_storage.get("channel_user_list"):
+            user_list[tab_name].append(author)
+        else:
+            user_list = {tab_name: [author]}
+
+        logging.debug(f"User {author} added to hash_table's user list")
+
+        await self.memory_storage.set("channel_user_list", user_list)
+
     async def on_message(self, message: Message):
         if message.message_type == "chat_message":
             m = ChatMessage(
-                message, self.page, await self.storage.get("chat_font_size")
+                message, self.page, await self.persistent_storage.get("chat_font_size")
             )
+            await self.add_author_to_user_list(message.user.name)
             await m.subscribe_to_font_size_change(self.font_size_pubsub)
+
         elif message.message_type == "login_message":
             m = ft.Text(
                 message.elements[0],
                 italic=True,
-                size=await self.storage.get("chat_font_size"),
+                size=await self.persistent_storage.get("chat_font_size"),
             )
 
         self.chat.controls.append(m)
 
-        n_messages_to_remove = len(self.chat.controls) - await self.storage.get(
-            "max_messages_per_chat"
-        )
+        n_messages_to_remove = len(
+            self.chat.controls
+        ) - await self.persistent_storage.get("max_messages_per_chat")
         if n_messages_to_remove > 0:
             del self.chat.controls[:n_messages_to_remove]
             logging.debug(

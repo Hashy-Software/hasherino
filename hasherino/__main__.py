@@ -213,6 +213,12 @@ class Hasherino:
     async def on_kb_event(self, e: ft.KeyboardEvent):
         self.page.is_ctrl_pressed = e.ctrl
 
+        if e.key == "E" and e.ctrl:
+            await self.new_message_row.emote_completion()
+
+        elif e.key == "U" and e.ctrl:
+            await self.new_message_row.user_completion()
+
     async def run(self):
         self.page.window_width = await self.persistent_storage.get("window_width")
         self.page.window_height = await self.persistent_storage.get("window_height")
@@ -234,7 +240,9 @@ class Hasherino:
 
         self.page.dialog = AccountDialog(self.persistent_storage)
         self.status_column = StatusColumn(self.memory_storage, self.persistent_storage)
-        chat_container = ChatContainer(self.persistent_storage, self.font_size_pubsub)
+        chat_container = ChatContainer(
+            self.persistent_storage, self.memory_storage, self.font_size_pubsub
+        )
         self.new_message_row = NewMessageRow(
             self.memory_storage,
             self.persistent_storage,

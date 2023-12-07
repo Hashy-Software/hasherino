@@ -139,9 +139,6 @@ class ParsedMessage:
         if not self.tags:
             return []
 
-        # if not self.tags.get("emotes") and not stv_emotes:
-        #     return [self.get_message_text()]
-
         message_elements: list[str | Emote] = []
         emote_name_to_id_and_url: dict[str, tuple[str, str]] = {}
 

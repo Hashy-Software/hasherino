@@ -50,6 +50,33 @@ class NewMessageRow(ft.Row):
         e.control.error_text = ""
         await self.page.update_async()
 
+    async def emote_completion(self):
+        logging.info("Emote completion")
+
+    async def user_completion(self):
+        user_list = await self.memory_storage.get("channel_user_list")
+
+        if user_list and self.new_message.value:
+            last_space_index = self.new_message.value.rfind(" ")
+
+            # If a space is not found it'll return -1, so getting the last word with last_space_index+1 works either way.
+            last_word = self.new_message.value[last_space_index + 1 :]
+
+            logging.debug(
+                f"Attempting username completion. last_space_index: {last_space_index} last_word: {last_word}"
+            )
+
+            for user in user_list[await self.persistent_storage.get("channel")]:
+                if user.lower().startswith(last_word.lower()):
+                    self.new_message.value = (
+                        f"{self.new_message.value[:-len(last_word)]}{user}"
+                    )
+                    logging.debug(
+                        f"Found username completion for {last_word} -> {user}."
+                    )
+                    await self.new_message.update_async()
+                    return
+
     async def new_message_focus(self, e):
         if await self.persistent_storage.get("user_name"):
             e.control.prefix = ft.Text(
