@@ -19,9 +19,12 @@ Check out [releases](https://github.com/Hashy-Software/hasherino/releases) for t
 
   <img src="https://github.com/Hashy-Software/hasherino/assets/38195951/fe714eda-f699-47a7-9636-7181d0767437" width="400"/>
 
+* [X] Twitch Emote support
+* [-] 7TV emote support(channel emotes are supported, not personal emotes).
+* [X] Emote name completion(ctrl + e)
+* [X] User name completion(ctrl + u)
+* [ ] 7TV badges and paint
 * [ ] Multiple tabs
-* [ ] Twitch Emote support
-* [ ] 7TV emote support
 
 ## Bug reporting
 Please create a [new issue](https://github.com/Hashy-Software/hasherino/issues/new) describing your bug. If necessary, attach your log file(path is on Settings > Debug) after reproducing the bug the last time you ran hasherino.
