@@ -67,7 +67,7 @@ class ChatContainer(ft.Container):
         )
 
     async def add_author_to_user_list(self, author: str):
-        tab_name = await self.memory_storage.get("channel")
+        tab_name = await self.persistent_storage.get("channel")
 
         # Get existing list from memory or initialize a new one
         if user_list := await self.memory_storage.get("channel_user_list"):

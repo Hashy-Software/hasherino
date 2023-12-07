@@ -51,7 +51,38 @@ class NewMessageRow(ft.Row):
         await self.page.update_async()
 
     async def emote_completion(self):
-        logging.info("Emote completion")
+        if not self.new_message.value:
+            return
+
+        stv_emotes = await self.memory_storage.get("7tv_emotes")
+        channel_stv_emotes = (
+            stv_emotes[await self.persistent_storage.get("channel")]
+            if stv_emotes
+            else {}
+        )
+        emote_map: dict[str, Emote] = await self.memory_storage.get("ttv_emote_sets")
+        emote_names = sorted(list(emote_map.keys()) + list(channel_stv_emotes.keys()))
+
+        if emote_names:
+            last_space_index = self.new_message.value.rfind(" ")
+
+            # If a space is not found it'll return -1, so getting the last word with last_space_index+1 works either way.
+            last_word = self.new_message.value[last_space_index + 1 :]
+
+            logging.debug(
+                f"Attempting emote completion. last_space_index: {last_space_index} last_word: {last_word}"
+            )
+
+            for emote_name in emote_names:
+                if emote_name.lower().startswith(last_word.lower()):
+                    self.new_message.value = (
+                        f"{self.new_message.value[:-len(last_word)]}{emote_name}"
+                    )
+                    logging.debug(
+                        f"Found emote completion for {last_word} -> {emote_name}."
+                    )
+                    await self.new_message.update_async()
+                    return
 
     async def user_completion(self):
         user_list = await self.memory_storage.get("channel_user_list")
@@ -66,7 +97,11 @@ class NewMessageRow(ft.Row):
                 f"Attempting username completion. last_space_index: {last_space_index} last_word: {last_word}"
             )
 
-            for user in user_list[await self.persistent_storage.get("channel")]:
+            sorted_user_list = sorted(
+                user_list[await self.persistent_storage.get("channel")]
+            )
+
+            for user in sorted_user_list:
                 if user.lower().startswith(last_word.lower()):
                     self.new_message.value = (
                         f"{self.new_message.value[:-len(last_word)]}{user}"
