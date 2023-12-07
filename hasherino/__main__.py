@@ -133,6 +133,12 @@ class Hasherino:
 
             case Command.PRIVMSG:
                 author: str = message.get_author_displayname()
+                stv_emotes = await self.memory_storage.get("7tv_emotes")
+                channel_emotes = (
+                    stv_emotes[await self.persistent_storage.get("channel")]
+                    if stv_emotes
+                    else {}
+                )
 
                 await self.chat_container_on_msg(
                     Message(
@@ -143,7 +149,7 @@ class Hasherino:
                             ),
                             chat_color=message.get_author_chat_color(),
                         ),
-                        elements=message.get_message_elements(),
+                        elements=message.get_message_elements(channel_emotes),
                         message_type="chat_message",
                         me=message.is_me(),
                     )

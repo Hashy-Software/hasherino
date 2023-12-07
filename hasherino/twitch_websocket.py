@@ -133,29 +133,43 @@ class ParsedMessage:
 
         return result
 
-    def get_message_elements(self) -> list[str, Emote]:
+    def get_message_elements(
+        self, stv_emotes: dict[str, str] | None
+    ) -> list[str | Emote]:
         if not self.tags:
             return []
 
-        if not self.tags.get("emotes"):
-            return [self.get_message_text()]
+        # if not self.tags.get("emotes") and not stv_emotes:
+        #     return [self.get_message_text()]
 
         message_elements: list[str | Emote] = []
-        emote_name_to_id: dict[str, str] = {}
+        emote_name_to_id_and_url: dict[str, tuple[str, str]] = {}
 
-        for emote_id, list_of_index_tuples in self.tags["emotes"].items():
-            first_starting_index, first_ending_index = map(int, list_of_index_tuples[0])
-            emote_name = self.get_message_text()[
-                first_starting_index : first_ending_index + 1
-            ]
-            emote_name_to_id[emote_name] = emote_id
+        if self.tags.get("emotes"):
+            for emote_id, list_of_index_tuples in self.tags["emotes"].items():
+                first_starting_index, first_ending_index = map(
+                    int, list_of_index_tuples[0]
+                )
+                emote_name = self.get_message_text()[
+                    first_starting_index : first_ending_index + 1
+                ]
+                emote_name_to_id_and_url[emote_name] = (
+                    emote_id,
+                    f"https://static-cdn.jtvnw.net/emoticons/v2/{emote_id}/default/dark/2.0",
+                )
+
+        if stv_emotes:
+            for emote_name, emote_id in stv_emotes.items():
+                emote_name_to_id_and_url[emote_name] = (
+                    emote_id,
+                    f"https://cdn.7tv.app/emote/{emote_id}/2x.webp",
+                )
 
         for text in self.get_message_text().split(" "):
-            is_emote = text in emote_name_to_id
+            is_emote = text in emote_name_to_id_and_url
 
             if is_emote:
-                emote_id = emote_name_to_id[text]
-                url = f"https://static-cdn.jtvnw.net/emoticons/v2/{emote_id}/default/dark/2.0"
+                emote_id, url = emote_name_to_id_and_url[text]
                 element = Emote(text, emote_id, url)
             else:
                 element = text

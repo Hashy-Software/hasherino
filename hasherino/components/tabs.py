@@ -10,9 +10,15 @@ from hasherino.twitch_websocket import TwitchWebsocket
 
 
 class HasherinoTab(ft.Tab):
-    def __init__(self, channel: str, persistent_storage: AsyncKeyValueStorage):
+    def __init__(
+        self,
+        channel: str,
+        persistent_storage: AsyncKeyValueStorage,
+        memory_storage: AsyncKeyValueStorage,
+    ):
         super().__init__(tab_content=ft.Row(controls=[ft.Text(channel)]))
         self.persistent_storage = persistent_storage
+        self.memory_storage = memory_storage
         self.channel = channel
 
     async def _get_channel_seventv_emotes(self, user: helix.TwitchUser) -> dict:
@@ -35,7 +41,9 @@ class HasherinoTab(ft.Tab):
             logging.info(
                 f"Loaded {len(active_ttv_set['emotes'])} 7tv emotes for {self.channel}"
             )
-            return active_ttv_set
+            return {
+                emote["name"]: emote["data"]["id"] for emote in active_ttv_set["emotes"]
+            }
         except Exception as e:
             raise Exception(
                 f"Failed to load 7tv emotes for {self.channel} with error {e}"
@@ -68,14 +76,15 @@ class HasherinoTab(ft.Tab):
                 )
             )[0]
 
-            async with asyncio.TaskGroup() as tg:
-                seventv_emotes_task = tg.create_task(
-                    self._get_channel_seventv_emotes(user)
-                )
+            seventv_emotes = await self._get_channel_seventv_emotes(user)
+            logging.debug(f"Loaded 7tv emotes for {user.login}: {seventv_emotes}")
 
-            seventv_emotes = await seventv_emotes_task
+            if not (emotes := await self.memory_storage.get("7tv_emotes")):
+                emotes = dict()
 
-            logging.info(f"7tv emotes: {seventv_emotes}")
+            emotes[user.login] = seventv_emotes
+            await self.memory_storage.set("7tv_emotes", emotes)
+
         except Exception as e:
             logging.error(f"Error while loading emotes: {e}")
 
@@ -94,7 +103,7 @@ class Tabs(ft.Tabs):
         self.persistent_storage = persistent_storage
 
     async def add_tab(self, channel: str):
-        tab = HasherinoTab(channel, self.persistent_storage)
+        tab = HasherinoTab(channel, self.persistent_storage, self.memory_storage)
         asyncio.ensure_future(tab.load_emotes())
         close_button = ft.IconButton(icon=ft.icons.CLOSE, on_click=self.close)
         close_button.parent_tab = tab
