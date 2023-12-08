@@ -35,7 +35,3 @@ class Message:
     elements: list[str | Emote]
     message_type: str
     me: bool
-
-
-# print(User("asd").toJSON())
-# pass

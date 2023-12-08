@@ -8,7 +8,8 @@ import flet as ft
 
 from hasherino.api import helix
 from hasherino.api.helix import NormalUserColor
-from hasherino.hasherino_dataclasses import Emote, HasherinoUser, Message
+from hasherino.factory import message_factory
+from hasherino.hasherino_dataclasses import Emote, HasherinoUser
 from hasherino.storage import AsyncKeyValueStorage
 
 
@@ -175,8 +176,6 @@ class NewMessageRow(ft.Row):
             await self.update_async()
             return
 
-        emote_map: dict[str, Emote] = await self.memory_storage.get("ttv_emote_sets")
-
         try:
             async with asyncio.timeout(2):
                 await websocket.send_message(
@@ -188,21 +187,31 @@ class NewMessageRow(ft.Row):
             await self.update_async()
             return
 
-        await self.chat_container_on_message(
-            Message(
-                HasherinoUser(
-                    name=await self.persistent_storage.get("user_name"),
-                    badges=await self.memory_storage.get("user_badges"),
-                    chat_color=await self.memory_storage.get("user_color"),
-                ),
-                elements=[
-                    emote_map[element] if element in emote_map else element
-                    for element in self.new_message.value.split(" ")
-                ],
-                message_type="chat_message",
-                me=False,
-            )
+        emote_map: dict[str, Emote] = await self.memory_storage.get("ttv_emote_sets")
+
+        stv_emotes: dict[str, dict[str, Emote]] | None = await self.memory_storage.get(
+            "7tv_emotes"
         )
+        channel = await self.persistent_storage.get("channel")
+        if stv_emotes and channel:
+            channel_stv_emotes = stv_emotes.get(
+                await self.persistent_storage.get("channel"), {}
+            )
+        else:
+            channel_stv_emotes = {}
+
+        emote_map.update(channel_stv_emotes)
+
+        message = message_factory(
+            HasherinoUser(
+                name=await self.persistent_storage.get("user_name"),
+                badges=await self.memory_storage.get("user_badges"),
+                chat_color=await self.memory_storage.get("user_color"),
+            ),
+            self.new_message.value,
+            emote_map,
+        )
+        await self.chat_container_on_message(message)
 
         if not self.page.is_ctrl_pressed:
             self.new_message.value = ""

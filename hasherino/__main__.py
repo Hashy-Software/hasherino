@@ -14,7 +14,8 @@ from hasherino.components import (
     Tabs,
 )
 from hasherino.components.settings_view import LOG_PATH
-from hasherino.hasherino_dataclasses import Emote, HasherinoUser, Message
+from hasherino.factory import message_factory
+from hasherino.hasherino_dataclasses import Emote, HasherinoUser
 from hasherino.pubsub import PubSub
 from hasherino.storage import (
     AsyncKeyValueStorage,
@@ -133,26 +134,37 @@ class Hasherino:
 
             case Command.PRIVMSG:
                 author: str = message.get_author_displayname()
-                stv_emotes = await self.memory_storage.get("7tv_emotes")
-                channel = await self.persistent_storage.get("channel")
-                channel_emotes = (
-                    stv_emotes[channel] if stv_emotes and channel in stv_emotes else {}
+
+                emote_map: dict[str, Emote] = await self.memory_storage.get(
+                    "ttv_emote_sets"
                 )
 
-                await self.chat_container_on_msg(
-                    Message(
-                        HasherinoUser(
-                            name=author,
-                            badges=message.get_badges(
-                                await self.memory_storage.get("ttv_badges")
-                            ),
-                            chat_color=message.get_author_chat_color(),
-                        ),
-                        elements=message.get_message_elements(channel_emotes),
-                        message_type="chat_message",
-                        me=message.is_me(),
+                stv_emotes: dict[
+                    str, dict[str, Emote]
+                ] | None = await self.memory_storage.get("7tv_emotes")
+                channel = await self.persistent_storage.get("channel")
+                if stv_emotes and channel:
+                    channel_stv_emotes = stv_emotes.get(
+                        await self.persistent_storage.get("channel"), {}
                     )
+                else:
+                    channel_stv_emotes = {}
+
+                emote_map.update(channel_stv_emotes)
+
+                message_obj = message_factory(
+                    HasherinoUser(
+                        name=author,
+                        badges=message.get_badges(
+                            await self.memory_storage.get("ttv_badges")
+                        ),
+                        chat_color=message.get_author_chat_color(),
+                    ),
+                    message,
+                    emote_map,
                 )
+                await self.chat_container_on_msg(message_obj)
+
             case _:
                 pass
 

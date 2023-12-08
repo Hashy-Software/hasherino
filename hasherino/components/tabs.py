@@ -5,6 +5,7 @@ import flet as ft
 
 from hasherino.api import helix
 from hasherino.api.seven_tv import SevenTV
+from hasherino.hasherino_dataclasses import Emote
 from hasherino.storage import AsyncKeyValueStorage
 from hasherino.twitch_websocket import TwitchWebsocket
 
@@ -82,7 +83,14 @@ class HasherinoTab(ft.Tab):
             if not (emotes := await self.memory_storage.get("7tv_emotes")):
                 emotes = dict()
 
-            emotes[user.login] = seventv_emotes
+            emotes[user.login] = {
+                emote_name: Emote(
+                    emote_id,
+                    emote_name,
+                    f"https://cdn.7tv.app/emote/{emote_id}/2x.webp",
+                )
+                for emote_name, emote_id in seventv_emotes.items()
+            }
             await self.memory_storage.set("7tv_emotes", emotes)
 
         except Exception as e:
