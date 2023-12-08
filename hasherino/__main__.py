@@ -238,6 +238,8 @@ class Hasherino:
         self.page.title = "Hasherino"
 
         self.page.dialog = AccountDialog(self.persistent_storage)
+        self.page.dialog.open = False
+
         self.status_column = StatusColumn(self.memory_storage, self.persistent_storage)
         chat_container = ChatContainer(
             self.persistent_storage, self.memory_storage, self.font_size_pubsub

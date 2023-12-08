@@ -27,11 +27,9 @@ class ChatContainer(ft.Container):
         self.memory_storage = memory_storage
         self.font_size_pubsub = font_size_pubsub
         self.is_chat_scrolled_down = False
-        self.chat = ft.Column(
+        self.chat = ft.ListView(
             expand=True,
             spacing=0,
-            run_spacing=0,
-            scroll=ft.ScrollMode.ALWAYS,
             auto_scroll=False,
             on_scroll=self.on_scroll,
         )
