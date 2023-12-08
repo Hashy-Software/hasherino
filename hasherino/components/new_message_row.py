@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from difflib import SequenceMatcher
 from random import choice
 from typing import Awaitable
 
@@ -61,7 +62,7 @@ class NewMessageRow(ft.Row):
             else {}
         )
         emote_map: dict[str, Emote] = await self.memory_storage.get("ttv_emote_sets")
-        emote_names = sorted(list(emote_map.keys()) + list(channel_stv_emotes.keys()))
+        emote_names = list(emote_map.keys()) + list(channel_stv_emotes.keys())
 
         if emote_names:
             last_space_index = self.new_message.value.rfind(" ")
@@ -73,16 +74,35 @@ class NewMessageRow(ft.Row):
                 f"Attempting emote completion. last_space_index: {last_space_index} last_word: {last_word}"
             )
 
-            for emote_name in emote_names:
-                if emote_name.lower().startswith(last_word.lower()):
-                    self.new_message.value = (
-                        f"{self.new_message.value[:-len(last_word)]}{emote_name}"
-                    )
-                    logging.debug(
-                        f"Found emote completion for {last_word} -> {emote_name}."
-                    )
-                    await self.new_message.update_async()
-                    return
+            # Leave only emotes that contain the last word
+            emote_names = [
+                emote_name
+                for emote_name in emote_names
+                if last_word.lower() in emote_name.lower()
+            ]
+
+            # Compares each emote to the word we want to complete, giving a ratio integer of how similar they are
+            ratio_to_emote = {
+                SequenceMatcher(
+                    a=emote_name.lower(), b=last_word.lower()
+                ).ratio(): emote_name
+                for emote_name in emote_names
+            }
+
+            # Sort given ratios and get the biggest one, which corresponds to the emote that best matches the last word in chat
+            biggest_ratio, best_match_emote = sorted(ratio_to_emote.items())[-1]
+
+            logging.debug(
+                f"Best match emote: {best_match_emote}. Ratio dictionary: {ratio_to_emote}"
+            )
+
+            self.new_message.value = (
+                f"{self.new_message.value[:-len(last_word)]}{best_match_emote}"
+            )
+            logging.debug(
+                f"Found emote completion for {last_word} -> {best_match_emote}."
+            )
+            await self.new_message.update_async()
 
     async def user_completion(self):
         user_list = await self.memory_storage.get("channel_user_list")

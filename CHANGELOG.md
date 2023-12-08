@@ -1,3 +1,3 @@
 Changes:
-* Fix bugs caused by new features when changing channels
+* Improve emote completion matching algorithm
 
