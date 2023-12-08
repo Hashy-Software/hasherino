@@ -71,7 +71,10 @@ class ChatContainer(ft.Container):
 
         # Get existing list from memory or initialize a new one
         if user_list := await self.memory_storage.get("channel_user_list"):
-            user_list[tab_name].append(author)
+            if tab_name in user_list:
+                user_list[tab_name].append(author)
+            else:
+                user_list[tab_name] = [author]
         else:
             user_list = {tab_name: [author]}
 
