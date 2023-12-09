@@ -337,8 +337,9 @@ async def main(page: ft.Page):
         ],
     )
 
-    websockets_logger = logging.getLogger("websockets")
-    websockets_logger.setLevel(logging.INFO)
+    logging.getLogger("websockets").setLevel(logging.INFO)
+    logging.getLogger("flet_core").setLevel(logging.INFO)
+    logging.getLogger("flet_runtime").setLevel(logging.INFO)
 
     persistent_storage = PersistentStorage()
     memory_storage = MemoryOnlyStorage(page)
