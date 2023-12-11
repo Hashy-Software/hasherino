@@ -117,10 +117,10 @@ class Hasherino:
                         if not await self.memory_storage.get("ttv_emote_sets"):
                             emotes: dict[str, Emote] = dict()
 
-                            for emote_obj in await helix.get_emote_sets(
+                            for emote_obj in await helix.get_all_emote_sets(
                                 await self.persistent_storage.get("app_id"),
                                 await self.persistent_storage.get("token"),
-                                message.get_emote_sets(),
+                                set(message.get_emote_sets()),
                             ):
                                 emotes[emote_obj["name"]] = Emote(
                                     name=emote_obj["name"],

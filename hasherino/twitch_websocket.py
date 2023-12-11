@@ -421,8 +421,11 @@ class TwitchWebsocket:
                     await self.join_channel(join_channel)
 
                 async for message in websocket:
-                    parsed_message: ParsedMessage = ParsedMessage(message)
-                    await message_callback(parsed_message)
+                    try:
+                        parsed_message: ParsedMessage = ParsedMessage(message)
+                        await message_callback(parsed_message)
+                    except Exception as e:
+                        logging.exception(e)
 
             except ConnectionClosedError:
                 logging.warning("Websocket connection closed, reconnecting")

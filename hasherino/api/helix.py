@@ -1,5 +1,6 @@
 import asyncio
 import enum
+import itertools
 import logging
 import ssl
 from dataclasses import dataclass
@@ -203,9 +204,13 @@ async def get_channel_emotes(app_id: str, oauth_token: str, broadcaster_id: str)
             return json_result["data"]
 
 
-async def get_emote_sets(app_id: str, oauth_token: str, emote_set_ids: list[str]):
+async def get_emote_sets(
+    app_id: str, oauth_token: str, emote_set_ids: set[str]
+) -> list[dict]:
     """
-    Raises Exception for invalid status code
+    Returns a list of dicts where each key-value pair is the information for an emote.
+
+    Raises Exception for invalid status code or passing more than 25 set ids
     """
     if not emote_set_ids:
         return []
@@ -237,3 +242,47 @@ async def get_emote_sets(app_id: str, oauth_token: str, emote_set_ids: list[str]
                 )
 
             return json_result["data"]
+
+
+async def get_all_emote_sets(
+    app_id: str, oauth_token: str, emote_set_ids: set[str]
+) -> list[dict]:
+    """
+    Instead of thowing an exception when the number of emote_set_ids exceeds 25
+    like get_emote_sets, this function tries to get all the emote sets by turning
+    the ids into batches of 25 and requesting for each batch concurrently.
+
+    Returns a list of dicts where each key-value pair is the information for an emote.
+    """
+
+    def batched(iterable, n):
+        """
+        batched('ABCDEFG', 3) --> ABC DEF G
+
+        Taken from python 3.12 itertools(not officially in 3.11)
+        """
+        if n < 1:
+            raise ValueError("n must be at least one")
+        it = iter(iterable)
+        while batch := tuple(itertools.islice(it, n)):
+            yield batch
+
+    emote_tasks = []
+    emote_sets = []
+
+    try:
+        async with asyncio.timeout(5):
+            for batch in batched(emote_set_ids, 25):
+                task = asyncio.create_task(
+                    get_emote_sets(app_id, oauth_token, set(batch))
+                )
+                emote_tasks.append(task)
+
+            for task in asyncio.as_completed(emote_tasks):
+                emote_sets += await task
+    except Exception as e:
+        logging.warning(
+            f"Returning incomplete set of emotes {emote_sets} because of exception {e}"
+        )
+
+    return emote_sets
