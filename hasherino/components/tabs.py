@@ -40,15 +40,22 @@ class HasherinoTab(ft.Tab):
                 if ttv_set["id"] == ttv_connection["emote_set_id"]
             )
             logging.info(
-                f"Loaded {len(active_ttv_set['emotes'])} 7tv emotes for {self.channel}"
+                f"Loaded {len(active_ttv_set['emotes'])} channel 7tv emotes for {self.channel}"
             )
             return {
                 emote["name"]: emote["data"]["id"] for emote in active_ttv_set["emotes"]
             }
         except Exception as e:
             raise Exception(
-                f"Failed to load 7tv emotes for {self.channel} with error {e}"
+                f"Failed to load channel 7tv emotes for {self.channel} with error {e}"
             ) from e
+
+    async def _get_global_7tv_emotes(self) -> dict[str, str]:
+        try:
+            global_emotes = await SevenTV.get_global_emote_set()
+            return {emote["name"]: emote["id"] for emote in global_emotes["emotes"]}
+        except Exception as e:
+            raise Exception("Failed to load global 7tv emotes with error {e}") from e
 
     async def _get_channel_ttv_emotes(
         self, app_id: str, helix_token: str, user: helix.TwitchUser
@@ -77,8 +84,14 @@ class HasherinoTab(ft.Tab):
                 )
             )[0]
 
-            seventv_emotes = await self._get_channel_seventv_emotes(user)
-            logging.debug(f"Loaded 7tv emotes for {user.login}: {seventv_emotes}")
+            async with asyncio.TaskGroup() as tg:
+                stv_channel_emotes_task = tg.create_task(
+                    self._get_channel_seventv_emotes(user)
+                )
+                stv_global_emotes_task = tg.create_task(self._get_global_7tv_emotes())
+
+            seventv_emotes = await stv_channel_emotes_task
+            seventv_emotes.update(await stv_global_emotes_task)
 
             if not (emotes := await self.memory_storage.get("7tv_emotes")):
                 emotes = dict()
