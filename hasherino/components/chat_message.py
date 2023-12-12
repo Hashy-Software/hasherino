@@ -27,7 +27,15 @@ class ChatBadge(ft.Image, FontSizeSubscriber):
         self.height = new_font_size
 
 
-class ChatEmote(ft.Image, FontSizeSubscriber):
+class ChatEmote(ft.Container, FontSizeSubscriber):
+    def __init__(self, *args, **kwargs):
+        self.emote: Emote | None = kwargs.pop("emote", None)
+        super().__init__(
+            content=ft.Image(
+                tooltip=self.emote.name if self.emote else "", *args, **kwargs
+            ),
+        )
+
     async def on_font_size_changed(self, new_font_size: int):
         self.height = new_font_size * 2
 
@@ -61,13 +69,12 @@ class ChatMessage(ft.Row):
         )
 
         for element in message.elements:
-            if type(element) == str:
+            if type(element) is str:
                 color = message.user.chat_color if message.me else ""
                 result = ChatText(element, color, self.font_size)
-            elif type(element) == Emote:
+            elif type(element) is Emote:
                 result = ChatEmote(
-                    src=element.url,
-                    height=self.font_size * 2,
+                    emote=element, src=element.url, height=self.font_size * 2
                 )
             else:
                 raise TypeError

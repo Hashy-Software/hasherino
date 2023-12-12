@@ -98,8 +98,8 @@ class HasherinoTab(ft.Tab):
 
             emotes[user.login] = {
                 emote_name: Emote(
-                    emote_id,
                     emote_name,
+                    emote_id,
                     f"https://cdn.7tv.app/emote/{emote_id}/2x.webp",
                 )
                 for emote_name, emote_id in seventv_emotes.items()
