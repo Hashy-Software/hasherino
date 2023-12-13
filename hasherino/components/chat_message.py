@@ -1,6 +1,7 @@
 from abc import ABC
 
 import flet as ft
+import validators
 
 from hasherino.hasherino_dataclasses import Emote, Message
 from hasherino.pubsub import PubSub
@@ -11,9 +12,16 @@ class FontSizeSubscriber(ABC):
         ...
 
 
-class ChatText(ft.Text, FontSizeSubscriber):
+class ChatText(ft.Container, FontSizeSubscriber):
     def __init__(self, text: str, color: str, size: int, weight=""):
-        super().__init__(text, size=size, weight=weight, color=color, selectable=True)
+        try:
+            is_url = validators.url(text)
+        except validators.ValidationError:
+            is_url = False
+
+        color = ft.colors.BLUE if is_url else color
+        content = ft.Text(text, size=size, weight=weight, color=color, selectable=True)
+        super().__init__(content=content, url=text)
 
     async def on_font_size_changed(self, new_font_size: int):
         self.size = new_font_size

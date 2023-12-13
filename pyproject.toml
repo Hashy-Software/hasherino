@@ -20,6 +20,7 @@ dependencies = [
     "keyring == 24.2.0",
     "flet == 0.15.0",
     "certifi == 2023.7.22",
+    "validators == 0.22.0",
 ]
 
 [tool.isort]
