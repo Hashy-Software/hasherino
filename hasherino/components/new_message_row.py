@@ -98,7 +98,7 @@ class NewMessageRow(ft.Row):
             )
 
             self.new_message.value = (
-                f"{self.new_message.value[:-len(last_word)]}{best_match_emote}"
+                f"{self.new_message.value[:-len(last_word)]}{best_match_emote} "
             )
             logging.debug(
                 f"Found emote completion for {last_word} -> {best_match_emote}."
@@ -125,7 +125,7 @@ class NewMessageRow(ft.Row):
             for user in sorted_user_list:
                 if user.lower().startswith(last_word.lower()):
                     self.new_message.value = (
-                        f"{self.new_message.value[:-len(last_word)]}{user}"
+                        f"{self.new_message.value[:-len(last_word)]}{user} "
                     )
                     logging.debug(
                         f"Found username completion for {last_word} -> {user}."
