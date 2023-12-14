@@ -16,6 +16,7 @@ from hasherino.components import (
 from hasherino.components.settings_view import LOG_PATH
 from hasherino.factory import message_factory
 from hasherino.hasherino_dataclasses import Emote, HasherinoUser
+from hasherino.parse_irc import Command, ParsedMessage
 from hasherino.pubsub import PubSub
 from hasherino.storage import (
     AsyncKeyValueStorage,
@@ -23,7 +24,7 @@ from hasherino.storage import (
     PersistentStorage,
     get_default_os_settings_path,
 )
-from hasherino.twitch_websocket import Command, ParsedMessage, TwitchWebsocket
+from hasherino.twitch_websocket import TwitchWebsocket
 
 
 class Hasherino:

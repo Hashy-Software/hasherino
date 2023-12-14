@@ -1,5 +1,5 @@
 from hasherino.hasherino_dataclasses import Emote, HasherinoUser, Message
-from hasherino.twitch_websocket import ParsedMessage
+from hasherino.parse_irc import ParsedMessage
 
 
 def message_factory(
