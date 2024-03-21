@@ -1,11 +1,12 @@
 import ssl
-from functools import cache
 
 import certifi
 from aiohttp import ClientSession, TCPConnector
 
 
 class SevenTV:
+    _EMOTES = {}
+
     @staticmethod
     def _get_client_session() -> ClientSession:
         ssl_context = ssl.create_default_context(cafile=certifi.where())
@@ -72,8 +73,10 @@ class SevenTV:
         )["userByConnection"]
 
     @staticmethod
-    @cache
     async def get_global_emote_set() -> dict:
+        if SevenTV._EMOTES:
+            return SevenTV._EMOTES
+
         return (
             await SevenTV._gql_request(
                 {

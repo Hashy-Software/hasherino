@@ -4,3 +4,4 @@ Changes:
 * Clickable urls(#47)
 * Add a space after completing names or emotes(#48)
 * Load chat message history when opening a tab
+* Fix error caused by trying to cache 7tv global emotes
