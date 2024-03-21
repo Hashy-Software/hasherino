@@ -4,6 +4,7 @@ import logging
 import flet as ft
 
 from hasherino.api import helix
+from hasherino.api.chat_history import get_chat_history
 from hasherino.api.seven_tv import SevenTV
 from hasherino.hasherino_dataclasses import Emote
 from hasherino.storage import AsyncKeyValueStorage
@@ -109,6 +110,11 @@ class HasherinoTab(ft.Tab):
         except Exception as e:
             logging.error(f"Error while loading emotes: {e}")
 
+    async def load_history(self):
+        for message in await get_chat_history(self.channel):
+            # TODO: add messages to chat
+            pass
+
 
 class Tabs(ft.Tabs):
     def __init__(
@@ -126,6 +132,7 @@ class Tabs(ft.Tabs):
     async def add_tab(self, channel: str):
         tab = HasherinoTab(channel, self.persistent_storage, self.memory_storage)
         asyncio.ensure_future(tab.load_emotes())
+        asyncio.ensure_future(tab.load_history())
         close_button = ft.IconButton(icon=ft.icons.CLOSE, on_click=self.close)
         close_button.parent_tab = tab
         tab.tab_content.controls.append(close_button)
