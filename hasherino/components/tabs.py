@@ -115,9 +115,10 @@ class HasherinoTab(ft.Tab):
             logging.error(f"Error while loading emotes: {e}")
 
     async def load_history(self):
-        limit = int(await self.persistent_storage.get("max_messages_per_chat"))
-        for message in await get_chat_history(self.channel, limit):
-            await self.message_received(message)
+        if await self.persistent_storage.get("chat_history"):
+            limit = int(await self.persistent_storage.get("max_messages_per_chat"))
+            for message in await get_chat_history(self.channel, limit):
+                await self.message_received(message)
 
 
 class Tabs(ft.Tabs):

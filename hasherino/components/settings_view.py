@@ -49,6 +49,29 @@ class SettingsView(ft.View):
                         width=500,
                         on_change=self._chat_update_rate_change,
                     ),
+                    ft.Text(),
+                    ft.Row(
+                        controls=[
+                            ft.Row(
+                                [
+                                    ft.Text("Enable chat history", size=16),
+                                    ft.Container(
+                                        content=ft.IconButton(
+                                            icon=ft.icons.INFO,
+                                            on_click=self._log_path_copy_click,
+                                        ),
+                                        url="https://recent-messages.robotty.de/",
+                                    ),
+                                ]
+                            ),
+                            ft.Checkbox(
+                                on_change=self._history_click,
+                                value=await self.storage.get("chat_history"),
+                                label_position=ft.LabelPosition.LEFT,
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    ),
                 ],
             ),
         )
@@ -197,3 +220,6 @@ class SettingsView(ft.View):
 
         finally:
             await self.page.update_async()
+
+    async def _history_click(self, e):
+        await self.storage.set("chat_history", e.control.value)

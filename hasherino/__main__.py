@@ -361,6 +361,7 @@ async def main(page: ft.Page):
             tg.create_task(persistent_storage.set("app_id", app_id))
             tg.create_task(persistent_storage.set("chat_font_size", 18))
             tg.create_task(persistent_storage.set("chat_update_rate", 0.5))
+            tg.create_task(persistent_storage.set("chat_history", True))
             tg.create_task(persistent_storage.set("color_switcher", False))
             tg.create_task(persistent_storage.set("max_messages_per_chat", 100))
             tg.create_task(persistent_storage.set("not_first_run", True))
