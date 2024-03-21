@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import Awaitable
 
 import flet as ft
 
@@ -7,6 +8,7 @@ from hasherino.api import helix
 from hasherino.api.chat_history import get_chat_history
 from hasherino.api.seven_tv import SevenTV
 from hasherino.hasherino_dataclasses import Emote
+from hasherino.parse_irc import ParsedMessage
 from hasherino.storage import AsyncKeyValueStorage
 from hasherino.twitch_websocket import TwitchWebsocket
 
@@ -17,11 +19,13 @@ class HasherinoTab(ft.Tab):
         channel: str,
         persistent_storage: AsyncKeyValueStorage,
         memory_storage: AsyncKeyValueStorage,
+        message_received: Awaitable[ParsedMessage],
     ):
         super().__init__(tab_content=ft.Row(controls=[ft.Text(channel)]))
         self.persistent_storage = persistent_storage
         self.memory_storage = memory_storage
         self.channel = channel
+        self.message_received = message_received
 
     async def _get_channel_seventv_emotes(self, user: helix.TwitchUser) -> dict:
         try:
@@ -111,9 +115,9 @@ class HasherinoTab(ft.Tab):
             logging.error(f"Error while loading emotes: {e}")
 
     async def load_history(self):
-        for message in await get_chat_history(self.channel):
-            # TODO: add messages to chat
-            pass
+        limit = int(await self.persistent_storage.get("max_messages_per_chat"))
+        for message in await get_chat_history(self.channel, limit):
+            await self.message_received(message)
 
 
 class Tabs(ft.Tabs):
@@ -129,9 +133,11 @@ class Tabs(ft.Tabs):
         self.memory_storage = memory_storage
         self.persistent_storage = persistent_storage
 
-    async def add_tab(self, channel: str):
-        tab = HasherinoTab(channel, self.persistent_storage, self.memory_storage)
-        asyncio.ensure_future(tab.load_emotes())
+    async def add_tab(self, channel: str, message_received: Awaitable[ParsedMessage]):
+        tab = HasherinoTab(
+            channel, self.persistent_storage, self.memory_storage, message_received
+        )
+        await tab.load_emotes()
         asyncio.ensure_future(tab.load_history())
         close_button = ft.IconButton(icon=ft.icons.CLOSE, on_click=self.close)
         close_button.parent_tab = tab

@@ -104,16 +104,22 @@ class ParsedMessage:
         """
         return (
             self.get_command() is Command.PRIVMSG
+            and self.parameters is not None
+            and len(self.parameters) >= 7
             and self.parameters[:7] == "\x01ACTION"
         )
 
     def get_message_text(self) -> str:
-        # Remove \r\n from end of text
-        result = "" if len(self.parameters) <= 2 else self.parameters[:-2]
+        result = self.parameters
 
         if self.is_me():
             # parameters: '\x01ACTION asd\x01\r\n'
-            result = result[8:-1]
+            result = self.parameters[8:-1]
+
+        if self.parameters is not None and self.get_command() is Command.PRIVMSG:
+            # Remove \r\n from end of text
+            if len(self.parameters) >= 2 and self.parameters[-2:] == "\r\n":
+                result = self.parameters[:-2]
 
         return result
 

@@ -195,7 +195,7 @@ class Hasherino:
                 await self.page.update_async()
                 return
 
-            await self.tabs.add_tab(channel.value)
+            await self.tabs.add_tab(channel.value, self.message_received)
             await self.persistent_storage.set("channel", channel.value)
             self.page.dialog.open = False
 
@@ -310,7 +310,7 @@ class Hasherino:
             )
 
             if channel:
-                await self.tabs.add_tab(channel)
+                await self.tabs.add_tab(channel, self.message_received)
 
             await self.memory_storage.set(
                 "ttv_badges",
