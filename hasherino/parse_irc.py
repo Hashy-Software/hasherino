@@ -114,12 +114,12 @@ class ParsedMessage:
 
         if self.is_me():
             # parameters: '\x01ACTION asd\x01\r\n'
-            result = self.parameters[8:-1]
+            result = result[8:-1]
 
         if self.parameters is not None and self.get_command() is Command.PRIVMSG:
             # Remove \r\n from end of text
             if len(self.parameters) >= 2 and self.parameters[-2:] == "\r\n":
-                result = self.parameters[:-2]
+                result = result[:-2]
 
         return result
 
