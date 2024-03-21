@@ -139,7 +139,7 @@ class Tabs(ft.Tabs):
             channel, self.persistent_storage, self.memory_storage, message_received
         )
         await tab.load_emotes()
-        asyncio.ensure_future(tab.load_history())
+        await tab.load_history()
         close_button = ft.IconButton(icon=ft.icons.CLOSE, on_click=self.close)
         close_button.parent_tab = tab
         tab.tab_content.controls.append(close_button)

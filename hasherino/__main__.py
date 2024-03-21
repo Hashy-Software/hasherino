@@ -196,6 +196,7 @@ class Hasherino:
                 return
 
             await self.tabs.add_tab(channel.value, self.message_received)
+            await self.chat_container.chat.scroll_to_async(offset=-1, duration=10)
             await self.persistent_storage.set("channel", channel.value)
             self.page.dialog.open = False
 
@@ -266,6 +267,7 @@ class Hasherino:
         self.tabs = Tabs(self.memory_storage, self.persistent_storage)
 
         self.chat_container_on_msg = chat_container.on_message
+        self.chat_container = chat_container
 
         # Add everything to the page
         await self.page.add_async(
@@ -311,6 +313,7 @@ class Hasherino:
 
             if channel:
                 await self.tabs.add_tab(channel, self.message_received)
+                await self.chat_container.chat.scroll_to_async(offset=-1, duration=10)
 
             await self.memory_storage.set(
                 "ttv_badges",
