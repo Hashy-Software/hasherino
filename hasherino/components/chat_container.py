@@ -64,28 +64,28 @@ class ChatContainer(ft.Container):
             event.pixels, event.max_scroll_extent, rel_tol=0.01
         )
 
-    async def add_author_to_user_list(self, author: str):
+    async def add_author_to_user_set(self, author: str):
         tab_name = await self.persistent_storage.get("channel")
 
         # Get existing list from memory or initialize a new one
-        if user_list := await self.memory_storage.get("channel_user_list"):
-            if tab_name in user_list:
-                user_list[tab_name].append(author)
+        if user_set := await self.memory_storage.get("channel_user_list"):
+            if tab_name in user_set:
+                user_set[tab_name].add(author)
             else:
-                user_list[tab_name] = [author]
+                user_set[tab_name] = {author}
         else:
-            user_list = {tab_name: [author]}
+            user_set = {tab_name: {author}}
 
-        logging.debug(f"User {author} added to hash_table's user list")
+        logging.debug(f"User {author} added to {tab_name}'s user list")
 
-        await self.memory_storage.set("channel_user_list", user_list)
+        await self.memory_storage.set("channel_user_list", user_set)
 
     async def on_message(self, message: Message):
         if message.message_type == "chat_message":
             m = ChatMessage(
                 message, self.page, await self.persistent_storage.get("chat_font_size")
             )
-            await self.add_author_to_user_list(message.user.name)
+            await self.add_author_to_user_set(message.user.name)
             await m.subscribe_to_font_size_change(self.font_size_pubsub)
 
         elif message.message_type == "login_message":
