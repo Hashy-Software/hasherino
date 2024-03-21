@@ -3,4 +3,4 @@ Changes:
 * Show tooltip with emote's name when hovering over it
 * Clickable urls(#47)
 * Add a space after completing names or emotes(#48)
-
+* Load chat message history when opening a tab
