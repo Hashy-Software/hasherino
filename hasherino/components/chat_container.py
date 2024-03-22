@@ -33,6 +33,12 @@ class ChatContainer(ft.Container):
             auto_scroll=False,
             on_scroll=self.on_scroll,
         )
+        self.scroll_down_btn = ft.FloatingActionButton(
+            icon=ft.icons.ARROW_DOWNWARD_ROUNDED,
+            on_click=self.scroll_to_bottom,
+            shape=ft.CircleBorder(),
+            bgcolor=ft.colors.with_opacity(0.04, ft.colors.GREY_200),
+        )
         super().__init__(
             content=self.chat,
             border=ft.border.all(1, ft.colors.OUTLINE),
@@ -42,6 +48,9 @@ class ChatContainer(ft.Container):
         )
         self.scheduled_ui_update: self._UiUpdateType = self._UiUpdateType.NO_UPDATE
         asyncio.ensure_future(self.update_ui())
+
+    async def scroll_to_bottom(self, _):
+        await self.chat.scroll_to_async(offset=-1, duration=10)
 
     async def update_ui(self):
         while True:
@@ -63,6 +72,8 @@ class ChatContainer(ft.Container):
         self.is_chat_scrolled_down = isclose(
             event.pixels, event.max_scroll_extent, rel_tol=0.01
         )
+        self.scroll_down_btn.visible = not self.is_chat_scrolled_down
+        await self.scroll_down_btn.update_async()
 
     async def add_author_to_user_set(self, author: str):
         tab_name = await self.persistent_storage.get("channel")

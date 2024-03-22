@@ -269,6 +269,10 @@ class Hasherino:
         self.chat_container_on_msg = chat_container.on_message
         self.chat_container = chat_container
 
+        self.page.floating_action_button_location = (
+            ft.FloatingActionButtonLocation.END_FLOAT
+        )
+
         # Add everything to the page
         await self.page.add_async(
             ft.Row(
@@ -291,8 +295,15 @@ class Hasherino:
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
             chat_container,
-            self.new_message_row,
-            self.status_column,
+            chat_container.scroll_down_btn,
+            ft.BottomAppBar(
+                content=ft.Column(
+                    [
+                        self.new_message_row,
+                        self.status_column,
+                    ]
+                )
+            ),
         )
 
         if user_name := await self.persistent_storage.get("user_name"):
