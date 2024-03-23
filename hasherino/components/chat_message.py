@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 
 import flet as ft
 import validators
@@ -8,11 +8,13 @@ from hasherino.pubsub import PubSub
 
 
 class FontSizeSubscriber(ABC):
+    @abstractmethod
     async def on_font_size_changed(self, new_font_size: int):
         ...
 
 
 class ShowTimestampSubscriber(ABC):
+    @abstractmethod
     async def on_show_timestamp_changed(self, show_timestamp: bool):
         ...
 
@@ -25,11 +27,13 @@ class ChatText(ft.Container, FontSizeSubscriber):
             is_url = False
 
         color = ft.colors.BLUE if is_url else color
-        content = ft.Text(text, size=size, weight=weight, color=color, selectable=True)
-        super().__init__(content=content, url=text)
+        self.content = ft.Text(
+            text, size=size, weight=weight, color=color, selectable=True
+        )
+        super().__init__(content=self.content, url=text)
 
     async def on_font_size_changed(self, new_font_size: int):
-        self.size = new_font_size
+        self.content.size = new_font_size
 
 
 class ChatBadge(ft.Image, FontSizeSubscriber):
@@ -53,15 +57,15 @@ class ChatEmote(ft.Container, FontSizeSubscriber):
         self.height = new_font_size * 2
 
 
-class ChatTimestamp(ft.Text, ShowTimestampSubscriber):
+class ChatTimestamp(ft.Text, ShowTimestampSubscriber, FontSizeSubscriber):
     def __init__(self, text: str, color: str, size: int):
         super().__init__(text, size=size, color=color, selectable=False)
 
     async def on_show_timestamp_changed(self, show_timestamp: bool):
-        if show_timestamp:
-            self.visible = True
-        else:
-            self.visible = False
+        self.visible = bool(show_timestamp)
+
+    async def on_font_size_changed(self, new_font_size: int):
+        self.size = max(new_font_size - 4, 4)
 
 
 class ChatMessage(ft.Row):
