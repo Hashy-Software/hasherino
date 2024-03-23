@@ -2,7 +2,7 @@ import asyncio
 import logging
 from difflib import SequenceMatcher
 from random import choice
-from typing import Awaitable
+from typing import Awaitable, Literal
 
 import flet as ft
 
@@ -11,6 +11,45 @@ from hasherino.api.helix import NormalUserColor
 from hasherino.factory import message_factory
 from hasherino.hasherino_dataclasses import Emote, HasherinoUser
 from hasherino.storage import AsyncKeyValueStorage
+
+
+class _CycleStatus:
+    """
+    Cycle through sent messages with arrow up and down
+    """
+
+    def __init__(self, text_field: ft.TextField):
+        self.items: list = []
+        self.index: int | None = None
+        self.text_field = text_field
+
+    async def add(self, item):
+        self.items.append(item)
+        self.index = None
+
+    async def up(self):
+        if self.index is None:
+            if len(self.items) > 0:
+                self.index = max(0, len(self.items) - 1)
+                await self._set_text_to_index_item()
+        else:
+            self.index = max(self.index - 1, 0)
+            await self._set_text_to_index_item()
+
+    async def down(self):
+        if self.index is not None:
+            self.index = min(self.index + 1, len(self.items) - 1)
+            if self.index + 1 == len(self.items):
+                self.text_field.value = ""
+                self.index = None
+                await self.text_field.update_async()
+            else:
+                await self._set_text_to_index_item()
+
+    async def _set_text_to_index_item(self):
+        if self.index is not None:
+            self.text_field.value = self.items[self.index]
+            await self.text_field.update_async()
 
 
 class NewMessageRow(ft.Row):
@@ -38,7 +77,7 @@ class NewMessageRow(ft.Row):
             on_submit=self.send_message_click,
             on_focus=self.new_message_focus,
             on_blur=self.new_message_clear_error,
-            on_change=self.new_message_clear_error,
+            on_change=self.new_message_change,
         )
         self.send_message = ft.IconButton(
             icon=ft.icons.SEND_ROUNDED,
@@ -46,11 +85,19 @@ class NewMessageRow(ft.Row):
             on_click=self.send_message_click,
         )
 
+        self.cycle_status = _CycleStatus(self.new_message)
         super().__init__([self.new_message, self.send_message])
+
+    async def clear_cycle_status(self):
+        self.cycle_status.index = None
 
     async def new_message_clear_error(self, e):
         e.control.error_text = ""
         await self.page.update_async()
+
+    async def new_message_change(self, e):
+        await self.new_message_clear_error(e)
+        await self.clear_cycle_status()
 
     async def emote_completion(self):
         if not self.new_message.value:
@@ -133,6 +180,14 @@ class NewMessageRow(ft.Row):
                     await self.new_message.update_async()
                     return
 
+    async def cycle_messages(
+        self, direction: Literal["Arrow Up"] | Literal["Arrow Down"]
+    ):
+        if direction == "Arrow Up":
+            await self.cycle_status.up()
+        elif direction == "Arrow Down":
+            await self.cycle_status.down()
+
     async def new_message_focus(self, e):
         if await self.persistent_storage.get("user_name"):
             e.control.prefix = ft.Text(
@@ -212,6 +267,7 @@ class NewMessageRow(ft.Row):
             emote_map,
         )
         await self.chat_container_on_message(message)
+        await self.cycle_status.add(self.new_message.value)
 
         if not self.page.is_ctrl_pressed:
             self.new_message.value = ""

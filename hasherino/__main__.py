@@ -236,6 +236,9 @@ class Hasherino:
         elif e.key == "U" and e.ctrl:
             await self.new_message_row.user_completion()
 
+        elif e.key in ("Arrow Up", "Arrow Down"):
+            await self.new_message_row.cycle_messages(e.key)
+
     async def run(self):
         self.page.window_width = await self.persistent_storage.get("window_width")
         self.page.window_height = await self.persistent_storage.get("window_height")
