@@ -10,8 +10,11 @@ LOG_PATH = get_default_os_settings_path() / "hasherino.log"
 
 
 class SettingsView(ft.View):
-    def __init__(self, font_size_pubsub: PubSub, storage: AsyncKeyValueStorage):
+    def __init__(
+        self, font_size_pubsub: PubSub, ts_pubsub: PubSub, storage: AsyncKeyValueStorage
+    ):
         self.font_size_pubsub = font_size_pubsub
+        self.ts_pubsub = ts_pubsub
         self.storage = storage
 
     async def init(self):
@@ -68,6 +71,16 @@ class SettingsView(ft.View):
                                 on_change=self._history_click,
                                 value=await self.storage.get("chat_history"),
                                 label_position=ft.LabelPosition.LEFT,
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    ),
+                    ft.Row(
+                        controls=[
+                            ft.Text("Show message timestamp", size=16),
+                            ft.Checkbox(
+                                on_change=self._show_timestamp_click,
+                                value=await self.storage.get("show_timestamp"),
                             ),
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -174,6 +187,10 @@ class SettingsView(ft.View):
 
         await self.storage.set("theme", e.data)
         await self.page.update_async()
+
+    async def _show_timestamp_click(self, e):
+        await self.storage.set("show_timestamp", e.control.value)
+        await self.ts_pubsub.send(e.control.value)
 
     async def _log_path_copy_click(self, _):
         await self.page.set_clipboard_async(str(LOG_PATH.absolute()))

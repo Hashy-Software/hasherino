@@ -12,6 +12,11 @@ class FontSizeSubscriber(ABC):
         ...
 
 
+class ShowTimestampSubscriber(ABC):
+    async def on_show_timestamp_changed(self, show_timestamp: bool):
+        ...
+
+
 class ChatText(ft.Container, FontSizeSubscriber):
     def __init__(self, text: str, color: str, size: int, weight=""):
         try:
@@ -48,6 +53,17 @@ class ChatEmote(ft.Container, FontSizeSubscriber):
         self.height = new_font_size * 2
 
 
+class ChatTimestamp(ft.Text, ShowTimestampSubscriber):
+    def __init__(self, text: str, color: str, size: int):
+        super().__init__(text, size=size, color=color, selectable=False)
+
+    async def on_show_timestamp_changed(self, show_timestamp: bool):
+        if show_timestamp:
+            self.visible = True
+        else:
+            self.visible = False
+
+
 class ChatMessage(ft.Row):
     def __init__(self, message: Message, page: ft.Page, font_size: int):
         super().__init__()
@@ -63,9 +79,18 @@ class ChatMessage(ft.Row):
         self.add_control_elements(message)
 
     def add_control_elements(self, message):
-        self.controls = [
-            ChatBadge(badge.url, self.font_size) for badge in message.user.badges
-        ]
+        if message.timestamp is not None:
+            self.controls.append(
+                ChatTimestamp(
+                    text=f"{message.timestamp.strftime('%H:%M')} ",
+                    color=ft.colors.GREY,
+                    size=max(self.font_size - 4, 4),
+                )
+            )
+
+        self.controls.extend(
+            [ChatBadge(badge.url, self.font_size) for badge in message.user.badges]
+        )
 
         self.controls.append(
             ChatText(
@@ -95,5 +120,14 @@ class ChatMessage(ft.Row):
                 control.on_font_size_changed
                 for control in self.controls
                 if isinstance(control, FontSizeSubscriber)
+            ]
+        )
+
+    async def subscribe_to_show_timestamp_change(self, pubsub: PubSub):
+        await pubsub.subscribe_all(
+            [
+                control.on_show_timestamp_changed
+                for control in self.controls
+                if isinstance(control, ShowTimestampSubscriber)
             ]
         )

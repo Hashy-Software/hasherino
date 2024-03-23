@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from hasherino.hasherino_dataclasses import Emote, HasherinoUser, Message
 from hasherino.parse_irc import ParsedMessage
 
@@ -22,6 +24,7 @@ def message_factory(
             elements=elements,
             message_type="chat_message",
             me=False,
+            timestamp=datetime.now(),
         )
     elif isinstance(message, ParsedMessage):
         emote_map = emote_map.copy()
@@ -34,6 +37,7 @@ def message_factory(
             elements=elements,
             message_type="chat_message",
             me=message.is_me(),
+            timestamp=message.get_timestamp(),
         )
     else:
         raise TypeError("The message parameter can only be an str or ParsedMessage.")

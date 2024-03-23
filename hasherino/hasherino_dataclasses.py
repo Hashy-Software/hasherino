@@ -1,6 +1,6 @@
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
-from json import dumps
 
 
 @dataclass
@@ -35,3 +35,4 @@ class Message:
     elements: list[str | Emote]
     message_type: str
     me: bool
+    timestamp: datetime | None = None

@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+from datetime import datetime
 from enum import Enum, auto
 
 from hasherino.hasherino_dataclasses import Badge, Emote
@@ -97,6 +98,13 @@ class ParsedMessage:
                 result = Command.OTHER
 
         return result
+
+    def get_timestamp(self) -> datetime | None:
+        if not self.tags or not self.tags.get("tmi-sent-ts"):
+            return None
+
+        ts = int(self.tags["tmi-sent-ts"])
+        return datetime.fromtimestamp(ts / 1000)
 
     def is_me(self) -> bool:
         """
@@ -345,6 +353,9 @@ class ParsedMessage:
 
                 case "emote-sets":
                     dict_parsed_tags["emote-sets"] = tag_value
+
+                case "tmi-sent-ts":
+                    dict_parsed_tags["tmi-sent-ts"] = tag_value
 
                 case _:
                     pass

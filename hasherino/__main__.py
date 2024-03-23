@@ -31,11 +31,13 @@ class Hasherino:
     def __init__(
         self,
         font_size_pubsub: PubSub,
+        ts_pubsub: PubSub,
         memory_storage: AsyncKeyValueStorage,
         persistent_storage: AsyncKeyValueStorage,
         page: ft.Page,
     ) -> None:
         self.font_size_pubsub = font_size_pubsub
+        self.ts_pubsub = ts_pubsub
         self.memory_storage = memory_storage
         self.persistent_storage = persistent_storage
         self.page = page
@@ -85,7 +87,9 @@ class Hasherino:
 
     async def settings_click(self, _):
         logging.debug("Clicked on settings")
-        sv = SettingsView(self.font_size_pubsub, self.persistent_storage)
+        sv = SettingsView(
+            self.font_size_pubsub, self.ts_pubsub, self.persistent_storage
+        )
         await sv.init()
         self.page.views.append(sv)
         await self.page.update_async()
@@ -256,7 +260,10 @@ class Hasherino:
 
         self.status_column = StatusColumn(self.memory_storage, self.persistent_storage)
         chat_container = ChatContainer(
-            self.persistent_storage, self.memory_storage, self.font_size_pubsub
+            self.persistent_storage,
+            self.memory_storage,
+            self.font_size_pubsub,
+            self.ts_pubsub,
         )
         self.new_message_row = NewMessageRow(
             self.memory_storage,
@@ -379,11 +386,12 @@ async def main(page: ft.Page):
             tg.create_task(persistent_storage.set("color_switcher", False))
             tg.create_task(persistent_storage.set("max_messages_per_chat", 100))
             tg.create_task(persistent_storage.set("not_first_run", True))
+            tg.create_task(persistent_storage.set("show_timestamp", True))
             tg.create_task(persistent_storage.set("theme", "System"))
             tg.create_task(persistent_storage.set("window_width", 500))
             tg.create_task(persistent_storage.set("window_height", 800))
 
-    hasherino = Hasherino(PubSub(), memory_storage, persistent_storage, page)
+    hasherino = Hasherino(PubSub(), PubSub(), memory_storage, persistent_storage, page)
     await hasherino.run()
 
 

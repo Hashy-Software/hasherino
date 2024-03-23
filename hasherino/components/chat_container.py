@@ -22,10 +22,12 @@ class ChatContainer(ft.Container):
         persistent_storage: AsyncKeyValueStorage,
         memory_storage: AsyncKeyValueStorage,
         font_size_pubsub: PubSub,
+        ts_pubsub: PubSub,
     ):
         self.persistent_storage = persistent_storage
         self.memory_storage = memory_storage
         self.font_size_pubsub = font_size_pubsub
+        self.ts_pubsub = ts_pubsub
         self.is_chat_scrolled_down = False
         self.chat = ft.ListView(
             expand=True,
@@ -98,6 +100,7 @@ class ChatContainer(ft.Container):
             )
             await self.add_author_to_user_set(message.user.name)
             await m.subscribe_to_font_size_change(self.font_size_pubsub)
+            await m.subscribe_to_show_timestamp_change(self.ts_pubsub)
 
         elif message.message_type == "login_message":
             m = ft.Text(
